@@ -65,11 +65,13 @@ artifacts/output/*
 artifacts/visual_qa/*
 artifacts/quality_reports/*
 artifacts/reviewed_content/*
+artifacts/qa_reports/*
 artifacts/version_history/
 !artifacts/output/.gitkeep
 !artifacts/visual_qa/.gitkeep
 !artifacts/quality_reports/.gitkeep
 !artifacts/reviewed_content/.gitkeep
+!artifacts/qa_reports/.gitkeep
 
 # Keep input content
 !artifacts/sample_content/
