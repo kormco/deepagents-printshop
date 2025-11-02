@@ -53,6 +53,9 @@ A specialized DeepAgent that generates professional LaTeX research reports with 
 
    # LaTeX optimization
    python agents/latex_specialist/agent.py
+
+   # Visual quality analysis
+   python agents/visual_qa/agent.py
    ```
 
 ## Project Structure
@@ -63,12 +66,12 @@ deepagent-scribe/
 │   ├── research_agent/       # LaTeX report generation
 │   ├── content_editor/       # Content quality review and improvement
 │   ├── latex_specialist/     # LaTeX formatting and typography optimization
+│   ├── visual_qa/            # Visual quality analysis agent
 │   └── qa_orchestrator/      # Multi-agent workflow coordination
 ├── tools/                     # Custom tools and utilities
 │   ├── latex_generator.py    # LaTeX document generation
 │   ├── pdf_compiler.py       # PDF compilation with pdflatex
-│   ├── visual_qa.py          # Visual quality analysis
-│   ├── visual_qa_agent.py    # Visual QA agent implementation
+│   ├── visual_qa.py          # Visual quality analysis tool
 │   ├── version_manager.py    # File versioning system
 │   └── change_tracker.py     # Content change tracking
 ├── artifacts/                 # Sample content and outputs
@@ -135,7 +138,7 @@ python agents/latex_specialist/agent.py
 
 **Step 4: Visual Quality Analysis**
 ```bash
-python tools/visual_qa_agent.py
+python agents/visual_qa/agent.py
 ```
 - Analyzes PDF layout and design quality
 - Checks typography and spacing
@@ -158,8 +161,8 @@ DeepAgent Scribe implements a sophisticated multi-agent system with specialized 
 - **Content Editor Agent**: Reviews and improves content quality (grammar, readability, style)
 - **Research Agent**: Generates LaTeX documents from markdown, CSV, and images
 - **LaTeX Specialist Agent**: Optimizes LaTeX formatting and typography
+- **Visual QA Agent**: Analyzes PDF layout, typography, and visual design quality
 - **QA Orchestrator**: Coordinates the complete workflow with quality gates
-- **Visual QA**: Analyzes PDF layout and design quality
 
 Each agent maintains persistent memory using the DeepAgents framework, allowing them to learn from previous iterations and improve over time.
 
