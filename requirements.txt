@@ -1,0 +1,10 @@
+deepagents-cli
+anthropic
+openai
+tavily-python
+langchain
+langchain-anthropic
+langchain-openai
+pandas
+pillow
+matplotlib

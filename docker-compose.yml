@@ -1,0 +1,17 @@
+version: '3.8'
+
+services:
+  deepagent-scribe:
+    build: .
+    container_name: deepagent-scribe
+    volumes:
+      - .:/app
+      - deepagents-data:/app/.deepagents
+    env_file:
+      - .env
+    stdin_open: true
+    tty: true
+    working_dir: /app
+
+volumes:
+  deepagents-data:

@@ -1,0 +1,83 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Test and Development Files
+test_*.py
+demo_*.py
+debug_*.py
+*_test.py
+MILESTONE_*.md
+*SUMMARY.md
+
+# Virtual Environment
+venv/
+ENV/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Environment variables
+.env
+
+# DeepAgents
+.deepagents/
+
+# Claude Code
+.claude/
+
+# LaTeX
+*.aux
+*.log
+*.out
+*.toc
+*.bbl
+*.blg
+*.fls
+*.fdb_latexmk
+*.synctex.gz
+
+# Output files and directories (generated content)
+artifacts/output/*
+artifacts/visual_qa/*
+artifacts/quality_reports/*
+artifacts/reviewed_content/*
+artifacts/version_history/
+!artifacts/output/.gitkeep
+!artifacts/visual_qa/.gitkeep
+!artifacts/quality_reports/.gitkeep
+!artifacts/reviewed_content/.gitkeep
+
+# Keep input content
+!artifacts/sample_content/
+
+# OS
+.DS_Store
+Thumbs.db
+nul
+
+# Docker
+.dockerignore

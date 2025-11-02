@@ -1,0 +1,1 @@
+"""Content Editor Agent for DeepAgent Scribe."""

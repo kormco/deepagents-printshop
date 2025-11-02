@@ -1,0 +1,1 @@
+"""LaTeX Specialist Agent for DeepAgent Scribe."""
