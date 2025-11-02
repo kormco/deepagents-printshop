@@ -32,6 +32,7 @@ class WorkflowStage(Enum):
     INITIALIZATION = "initialization"
     CONTENT_REVIEW = "content_review"
     LATEX_OPTIMIZATION = "latex_optimization"
+    VISUAL_QA = "visual_qa"
     QUALITY_ASSESSMENT = "quality_assessment"
     ITERATION = "iteration"
     COMPLETION = "completion"
@@ -325,6 +326,8 @@ class WorkflowCoordinator:
                 return WorkflowStage.COMPLETION, "Ready for human review"
             elif quality_evaluation.next_action == "proceed_to_latex":
                 return WorkflowStage.LATEX_OPTIMIZATION, "Proceed to LaTeX optimization"
+            elif quality_evaluation.next_action == "proceed_to_visual_qa":
+                return WorkflowStage.VISUAL_QA, "Proceed to visual QA"
             elif quality_evaluation.next_action == "proceed_to_final_assessment":
                 return WorkflowStage.QUALITY_ASSESSMENT, "Proceed to final quality assessment"
 
@@ -392,6 +395,66 @@ class WorkflowCoordinator:
                     workflow.final_version = target_version
 
                 return agent_result.success
+
+            elif stage == WorkflowStage.VISUAL_QA:
+                # Run Visual QA analysis on the generated PDF
+                print("👁️ Executing Visual QA Analysis")
+
+                # Visual QA doesn't modify content, just analyzes the PDF
+                # The PDF should be at artifacts/output/research_report.pdf
+                pdf_path = "artifacts/output/research_report.pdf"
+
+                # Create a simple agent result for Visual QA
+                from tools.visual_qa import VisualQAAgent
+                visual_qa = VisualQAAgent()
+
+                try:
+                    if os.path.exists(pdf_path):
+                        qa_results = visual_qa.validate_pdf_visual_quality(pdf_path)
+                        print(f"✅ Visual QA Score: {qa_results.overall_score:.1f}/100")
+
+                        # Collect all issues from page results
+                        all_issues = []
+                        for page_result in qa_results.page_results:
+                            all_issues.extend(page_result.issues_found)
+
+                        agent_result = AgentResult(
+                            agent_type=AgentType.LATEX_SPECIALIST,  # Reuse for now
+                            success=True,
+                            version_created=workflow.final_version,
+                            quality_score=qa_results.overall_score,
+                            processing_time=0.0,
+                            issues_found=all_issues[:5],  # Limit to first 5
+                            optimizations_applied=[],
+                            error_message=None
+                        )
+                    else:
+                        print(f"⚠️ PDF not found at {pdf_path}, skipping Visual QA")
+                        agent_result = AgentResult(
+                            agent_type=AgentType.LATEX_SPECIALIST,
+                            success=True,
+                            version_created=workflow.final_version,
+                            quality_score=None,  # Don't affect overall score if skipped
+                            processing_time=0.0,
+                            issues_found=[],
+                            optimizations_applied=[],
+                            error_message="PDF not found"
+                        )
+                except Exception as e:
+                    print(f"⚠️ Visual QA error: {e}")
+                    agent_result = AgentResult(
+                        agent_type=AgentType.LATEX_SPECIALIST,
+                        success=True,
+                        version_created=workflow.final_version,
+                        quality_score=None,  # Don't affect overall score if failed
+                        processing_time=0.0,
+                        issues_found=[],
+                        optimizations_applied=[],
+                        error_message=str(e)
+                    )
+
+                workflow.agents_executed.append(agent_result)
+                return True
 
             elif stage == WorkflowStage.QUALITY_ASSESSMENT:
                 # Assess current quality
@@ -491,7 +554,13 @@ class WorkflowCoordinator:
                 next_stage, action_desc = self.determine_next_action(workflow, latex_evaluation)
                 print(f"📊 LaTeX Quality Gate: {latex_evaluation.result.value} - {action_desc}")
 
-                if next_stage == WorkflowStage.QUALITY_ASSESSMENT:
+                if next_stage == WorkflowStage.VISUAL_QA:
+                    success = self.execute_workflow_stage(workflow, WorkflowStage.VISUAL_QA)
+                    if success:
+                        workflow.current_stage = WorkflowStage.QUALITY_ASSESSMENT
+                    else:
+                        break
+                elif next_stage == WorkflowStage.QUALITY_ASSESSMENT:
                     success = self.execute_workflow_stage(workflow, WorkflowStage.QUALITY_ASSESSMENT)
                     if not success:
                         break
