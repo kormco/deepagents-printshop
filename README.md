@@ -133,6 +133,16 @@ python agents/latex_specialist/agent.py
 - Improves document structure
 - Ensures professional layout
 
+**Step 4: Visual Quality Analysis**
+```bash
+python tools/visual_qa_agent.py
+```
+- Analyzes PDF layout and design quality
+- Checks typography and spacing
+- Validates figure placement and quality
+- Generates visual quality report
+- Saves analysis to `artifacts/visual_qa/`
+
 ### Quality Metrics
 
 The system tracks comprehensive quality metrics:
