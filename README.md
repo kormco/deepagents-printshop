@@ -48,10 +48,10 @@ graph TB
     ORCH{QA Orchestrator<br/>Quality Gates<br/>🎯}
 
     %% Agent Pipeline
-    A1[Content Editor<br/>Grammar & Readability<br/>📝]
-    A2[Author Agent<br/>Markdown→LaTeX Conversion<br/>📄]
-    A3[LaTeX Specialist<br/>Typography & Formatting<br/>✨]
-    A4[Visual QA<br/>PDF Layout Analysis<br/>👁️]
+    A1[Content Editor<br/>Grammar & Readability<br/>🤖 Claude LLM<br/>📝]
+    A2[Author Agent<br/>Markdown→LaTeX Conversion<br/>🤖 Claude LLM<br/>📄]
+    A3[LaTeX Specialist<br/>Typography & Formatting<br/>🤖 Claude LLM<br/>✨]
+    A4[Visual QA<br/>PDF Layout Analysis<br/>🤖 Claude Vision<br/>👁️]
 
     %% Pattern Learning System
     LEARN[🧠 Pattern Learner<br/>Mines History<br/>By Document Type]
