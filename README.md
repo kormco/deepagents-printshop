@@ -37,11 +37,14 @@ By using this software, you acknowledge these risks and agree to conduct appropr
 ## System Architecture
 
 ```mermaid
-graph LR
+graph TB
     %% Inputs
-    IN_MD[📄 Markdown<br/>Content]
-    IN_CSV[📊 CSV Data<br/>Tables]
-    IN_IMG[🖼️ Images &<br/>Diagrams]
+    IN_MD[📄 Markdown Content]
+    IN_CSV[📊 CSV Data Tables]
+    IN_IMG[🖼️ Images & Diagrams]
+
+    %% Orchestrator
+    ORCH{QA Orchestrator<br/>Quality Gates<br/>🎯}
 
     %% Agent Pipeline
     A1[Content Editor<br/>Agent<br/>📝]
@@ -49,48 +52,43 @@ graph LR
     A3[LaTeX Specialist<br/>Agent<br/>✨]
     A4[Visual QA<br/>Agent<br/>👁️]
 
-    %% Orchestration
-    ORCH{QA Orchestrator<br/>🎯}
-    GATE{Quality Gates<br/>✅}
-
     %% Outputs
-    OUT_PDF[📑 Final PDF<br/>90+ Quality Score]
-    OUT_VER[📦 Version History<br/>Full Change Tracking]
-    OUT_IMG[🖼️ Visual QA<br/>Screenshots]
-    OUT_REP[📊 Quality<br/>Reports]
+    OUT_PDF[📑 Final PDF<br/>Overall Score 90+]
+    OUT_VER[📦 Version History]
+    OUT_IMG[🖼️ Page Screenshots]
+    OUT_REP[📊 Quality Reports]
 
-    %% Main flow
+    %% Input flow
     IN_MD --> A1
     IN_CSV --> A2
     IN_IMG --> A2
 
-    A1 -->|v1_content_edited| GATE
-    GATE -->|Pass| A2
-    A2 -->|v2_latex_optimized<br/>+ PDF| GATE
-    GATE -->|Pass| A3
-    A3 -->|Improved LaTeX| GATE
-    GATE -->|Pass| A4
+    %% Stage 1: Content Review
+    A1 -->|v1_content_edited| ORCH
+    ORCH -->|✅ Score ≥80| A2
 
-    %% Iteration loop
-    A4 -->|Issues Found<br/>Iteration 1-2| A2
-    A4 -.->|Score 90+| OUT_PDF
+    %% Stage 2: LaTeX Generation
+    A2 -->|v2_latex_optimized<br/>+ Initial PDF| ORCH
+    ORCH -->|✅ Compiled| A3
 
-    %% Orchestration
-    ORCH -.->|Coordinates| A1
-    ORCH -.->|Coordinates| A2
-    ORCH -.->|Coordinates| A3
-    ORCH -.->|Coordinates| A4
-    ORCH -.->|Validates| GATE
+    %% Stage 3: LaTeX Optimization
+    A3 -->|Improved LaTeX| ORCH
+    ORCH -->|✅ Score ≥85| A4
+
+    %% Stage 4: Visual QA
+    A4 -->|Visual Analysis<br/>+ Page Images| ORCH
+    ORCH -->|❌ Issues Found<br/>Iteration 1-2| A2
+    ORCH -->|✅ Overall Score ≥90| OUT_PDF
 
     %% Outputs
     A2 --> OUT_VER
     A4 --> OUT_IMG
     ORCH --> OUT_REP
 
-    style ORCH fill:#f9f,stroke:#333,stroke-width:3px
-    style GATE fill:#9ff,stroke:#333,stroke-width:3px
+    style ORCH fill:#f9f,stroke:#333,stroke-width:4px
     style A2 fill:#ff9,stroke:#333,stroke-width:2px
     style A4 fill:#9f9,stroke:#333,stroke-width:2px
+    style OUT_PDF fill:#9f9,stroke:#333,stroke-width:2px
 ```
 
 ## Quick Start
