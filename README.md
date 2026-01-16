@@ -37,80 +37,40 @@ By using this software, you acknowledge these risks and agree to conduct appropr
 
 ## System Architecture
 
-```mermaid
-graph TB
-    %% Inputs
-    IN_MD[📄 Markdown Content]
-    IN_CSV[📊 CSV Data Tables]
-    IN_IMG[🖼️ Images & Diagrams]
+<img src="architecture.png" width="400">
 
-    %% Orchestrator
-    ORCH{QA Orchestrator<br/>Quality Gates<br/>🎯}
+### Iteration & Recursion Flow
 
-    %% Agent Pipeline
-    A1[Content Editor<br/>Grammar & Readability<br/>🤖 Claude LLM<br/>📝]
-    A2[Author Agent<br/>Markdown→LaTeX Conversion<br/>🤖 Claude LLM<br/>📄]
-    A3[LaTeX Specialist<br/>Typography & Formatting<br/>🤖 Claude LLM<br/>✨]
-    A4[Visual QA<br/>PDF Layout Analysis<br/>🤖 Claude Vision<br/>👁️]
+![Iteration & Recursion Flow](recursion-flow.png)
 
-    %% Pattern Learning System
-    LEARN[🧠 Pattern Learner<br/>Mines History<br/>By Document Type]
-    PATTERNS[(📚 Learned Patterns<br/>memories/research_report/<br/>Common Fixes & Best Practices)]
 
-    %% Outputs
-    OUT_PDF[📑 Final PDF<br/>Overall Score 90+]
-    OUT_VER[📦 Version History<br/>All Stages Tracked]
-    OUT_IMG[🖼️ Page Screenshots]
-    OUT_REP[📊 Quality Reports]
+### Agent Nodes & Tools
 
-    %% Input flow
-    IN_MD --> A1
-    IN_CSV --> A2
-    IN_IMG --> A2
+| Node | Agent | Tools Used | LLM Calls |
+|------|-------|------------|-----------|
+| **ContentReview** | ContentEditorAgent | `ContentReviewer`, `VersionManager`, `ChangeTracker` | Claude Sonnet (grammar/readability analysis) |
+| **LaTeXOptimization** | LaTeXSpecialistAgent | `LaTeXAnalyzer`, `LaTeXOptimizer`, `LLMLaTeXGenerator`, `PDFCompiler` | Claude Sonnet (LaTeX generation, syntax fixing, self-correction) |
+| **VisualQA** | VisualQAFeedbackAgent | `PDFToImageConverter`, `VisualValidator`, `MultimodalLLMAnalyzer`, `LLMLaTeXGenerator`, `PDFCompiler` | Claude Haiku Vision (page analysis), Claude Sonnet (fix generation) |
 
-    %% Pattern Learning Input (dotted - happens between runs)
-    PATTERNS -.->|Historical Context| A1
-    PATTERNS -.->|Historical Context| A2
-    PATTERNS -.->|Historical Context| A3
-    PATTERNS -.->|Historical Context| A4
+### Quality Gates (Conditional Edges)
 
-    %% Stage 1: Content Review
-    A1 -->|v1_content_edited| ORCH
-    ORCH -->|✅ Score ≥80| A2
-
-    %% Stage 2: LaTeX Generation
-    A2 -->|v2_latex_optimized<br/>+ Initial PDF| ORCH
-    ORCH -->|✅ Compiled| A3
-
-    %% Stage 3: LaTeX Optimization
-    A3 -->|Improved LaTeX| ORCH
-    ORCH -->|✅ Score ≥85| A4
-
-    %% Stage 4: Visual QA
-    A4 -->|Visual Analysis<br/>+ Page Images| ORCH
-    ORCH -->|❌ Issues Found<br/>Iteration 1-2| A2
-    ORCH -->|✅ Overall Score ≥90| OUT_PDF
-
-    %% Outputs
-    A1 -.-> OUT_VER
-    A2 -.-> OUT_VER
-    A3 -.-> OUT_VER
-    A4 -.-> OUT_VER
-    A4 --> OUT_IMG
-    ORCH --> OUT_REP
-
-    %% Pattern Learning Loop (dotted - happens between runs)
-    OUT_VER -.->|Analyze Changes| LEARN
-    OUT_REP -.->|Extract Metrics| LEARN
-    LEARN -.->|Update Patterns| PATTERNS
-
-    style ORCH fill:#f9f,stroke:#333,stroke-width:4px
-    style A2 fill:#ff9,stroke:#333,stroke-width:2px
-    style A4 fill:#9f9,stroke:#333,stroke-width:2px
-    style OUT_PDF fill:#9f9,stroke:#333,stroke-width:2px
-    style LEARN fill:#fcf,stroke:#333,stroke-width:3px
-    style PATTERNS fill:#ffc,stroke:#333,stroke-width:3px
 ```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                        QUALITY GATE LOGIC                               │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                         │
+│  Content Gate:     score ≥ 80  → PASS    │  score < 80  → ITERATE      │
+│  LaTeX Gate:       score ≥ 85  → PASS    │  score < 85  → ITERATE      │
+│  Overall Gate:     score ≥ 90  → PASS (human handoff)                  │
+│                    score ≥ 80  → PASS (acceptable)                     │
+│                    score < 80  → ITERATE (if iterations < 3)           │
+│                    iterations ≥ 3 → ESCALATE (human intervention)      │
+│                                                                         │
+│  Convergence:      improvement < 2 points → plateau detected           │
+│                                                                         │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
 
 ## Pattern Learning System
 
@@ -301,48 +261,45 @@ pdftoppm -h
 ```
 deepagents-printshop/
 ├── agents/
-│   ├── research_agent/       # Author Agent: LaTeX document generation
-│   │   ├── llm_report_generator.py   # LLM-based generation with pattern learning
-│   │   └── report_generator.py       # Traditional template-based generator (legacy)
-│   ├── content_editor/       # Grammar, readability, and style improvement
-│   ├── latex_specialist/     # LaTeX formatting and typography optimization
-│   ├── visual_qa/            # Visual PDF quality analysis with LLM feedback
-│   └── qa_orchestrator/      # Multi-agent workflow coordination
+│   ├── content_editor/           # Grammar, readability, style improvement
+│   │   ├── agent.py              # Main agent entry point
+│   │   ├── content_reviewer.py   # Claude-powered content analysis
+│   │   └── versioned_agent.py    # Version-aware agent wrapper
+│   ├── latex_specialist/         # LaTeX formatting and typography
+│   │   ├── agent.py
+│   │   ├── latex_analyzer.py     # LaTeX structure analysis
+│   │   └── latex_optimizer.py    # Typography optimization
+│   ├── qa_orchestrator/          # Multi-agent workflow coordination
+│   │   ├── agent.py              # Main orchestrator entry point
+│   │   ├── quality_gates.py      # Pass/iterate/escalate logic
+│   │   └── workflow_coordinator.py
+│   ├── research_agent/           # Author Agent: LaTeX document generation
+│   │   ├── agent.py
+│   │   ├── llm_report_generator.py   # LLM-based generation
+│   │   └── report_generator.py       # Template-based generator (legacy)
+│   └── visual_qa/                # Visual PDF quality analysis
+│       └── agent.py
 ├── tools/
-│   ├── llm_latex_generator.py    # LLM-based LaTeX generation with self-correction
-│   ├── pattern_learner.py        # Mines version history for improvement patterns
-│   ├── pattern_injector.py       # Injects learned patterns into agent prompts
-│   ├── latex_generator.py        # Traditional LaTeX template generator (legacy)
+│   ├── llm_latex_generator.py    # LLM LaTeX generation with self-correction
+│   ├── pattern_learner.py        # Mines version history for patterns
+│   ├── pattern_injector.py       # Injects patterns into agent prompts
+│   ├── latex_generator.py        # Template-based LaTeX generator (legacy)
 │   ├── pdf_compiler.py           # PDF compilation with error handling
-│   ├── visual_qa.py              # Visual quality analysis with Claude vision
+│   ├── visual_qa.py              # Visual analysis with Claude Vision
 │   ├── version_manager.py        # File versioning system
 │   └── change_tracker.py         # Content change tracking and diffs
 ├── artifacts/
-│   ├── sample_content/           # Source markdown, images, and CSV data
-│   ├── reviewed_content/         # Versioned content improvements
-│   │   ├── v0_original/          # Original source content
-│   │   ├── v1_content_edited/    # After content review
-│   │   ├── v2_latex_optimized/   # After LaTeX optimization (includes PDF)
-│   │   └── v3_visual_qa/         # Visual QA analysis and iterative improvements
-│   │       ├── page_images/      # PDF screenshots for analysis
-│   │       └── iterations/       # Iterative PDF improvements
-│   ├── agent_reports/
-│   │   ├── quality/              # Content & LaTeX quality reports
-│   │   └── orchestration/        # Pipeline execution reports
-│   ├── version_history/
-│   │   ├── changes/              # Change summaries between versions
-│   │   ├── diffs/                # Detailed diffs
-│   │   └── version_manifest.json # Complete version tracking
-│   └── output/                   # Generated LaTeX and PDF files
-├── .deepagents/                  # Persistent agent memory storage
-│   ├── memories/                 # Pattern learning organized by document type
-│   │   └── research_report/     # Document type-specific patterns
-│   │       ├── learned_patterns.json    # Pattern database for this doc type
-│   │       └── pattern_learning_report.md  # Human-readable insights
-│   └── [agent_name]/memories/   # Per-agent memory files (legacy)
+│   ├── sample_content/           # Source content
+│   │   ├── *.md                  # Markdown content files
+│   │   ├── data/                 # CSV data tables
+│   │   └── images/               # Images and diagrams
+│   ├── reviewed_content/         # Versioned outputs (created at runtime)
+│   └── output/                   # Final LaTeX and PDF files
+├── .deepagents/                  # Agent memory (created at runtime)
 ├── Dockerfile
 ├── docker-compose.yml
-└── requirements.txt
+├── requirements.txt
+└── SETUP.md                      # Detailed setup instructions
 ```
 
 ## Workflow Details
