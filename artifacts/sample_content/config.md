@@ -1,64 +1,54 @@
 # Document Configuration
 
-## Title
-Advanced AI Research: Transformers and Beyond
+## DISCLAIMER
 
-## Authors
-- Dr. Research Smith
-- Dr. AI Expert
-- Prof. Machine Learning
+**THIS IS A FICTIONAL EXAMPLE MAGAZINE FOR DEMONSTRATION PURPOSES ONLY.**
 
-## Abstract
-This paper presents a comprehensive analysis of modern artificial intelligence architectures, focusing on transformer-based models and their applications across various domains. We evaluate performance metrics, discuss implementation challenges, and propose future research directions. Our findings demonstrate significant improvements in accuracy and efficiency compared to traditional approaches.
+This publication, "Deep Agents," is entirely fictitious and was created as sample content for the DeepAgents PrintShop document generation system. While the content references real technologies, companies, and industry trends, all quotes, statistics, and projections attributed to individuals are fabricated. Any resemblance to real persons, living or dead, is coincidental.
 
-## Keywords
-- Artificial Intelligence
-- Machine Learning
-- Transformers
-- Natural Language Processing
-- Deep Learning
+Do not cite this document as a factual source.
 
-## Document Class
-article
+---
 
-## Packages
-- amsmath
-- graphicx
-- booktabs
-- hyperref
-- cite
+## Magazine Details
+- **Cover Page**: Full page photo with Magazine title, copyright footer, and fake barcode
+- **Title**: Deep Agents
+- **Subtitle**: The Definitive Guide to Autonomous AI
+- **Issue**: Volume 1, Issue 1
+- **Date**: January 2026
+- **Publisher**: DeepAgents Publishing
 
-## Bibliography Style
-ieee
+## Document Type
+research_report
 
-## Bibliography File
-references.bib
+## Sections
+1. Editor's Letter (introduction.md)
+2. Cover Story: The Year of the Agent (cover_story.md)
+3. Feature: Claude Code Revolution (claude_code.md)
+4. Technical Deep Dive: LangGraph & Multi-Agent Systems (langgraph.md)
+5. Industry Standard: Model Context Protocol (mcp_protocol.md)
+6. Data & Metrics (methodology.md)
+7. What's Next: The Road to 2027 (conclusion.md)
+
+## Style Guide
+- Professional magazine tone
+- Technical accuracy with accessible language
+- Pull quotes for emphasis
+- Sidebars for technical details
+- Data visualizations and tables
+
+## Image Sources
+- [Pixabay)](https://pixabay.com/)
+
 
 ## Document Options
 - include_toc: true
-- include_bibliography: true
+- include_bibliography: false
 - two_column: false
-- font_size: 12pt
+- font_size: 11pt
 - paper_size: letterpaper
 
 ## Headers and Footers
-- header_left: AI Research Survey
-- header_right: \today
+- header_left: Deep Agents Magazine
+- header_right: January 2026
 - footer_center: \thepage
-
-## Document Structure
-1. Abstract
-2. Introduction: introduction.md
-3. Research Areas: research_areas.md
-4. Methodology: methodology.md
-5. Results: performance_table.md
-6. Detailed Results: detailed_results.md
-7. Results Discussion: results.md
-8. Visualizations: auto-generated
-9. Conclusion: conclusion.md
-
-## Section Configuration
-- abstract_level: 1
-- main_section_level: 1
-- subsection_level: 2
-- auto_generate_sections: true

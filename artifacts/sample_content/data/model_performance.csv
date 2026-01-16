@@ -1,6 +1,6 @@
-Model,Accuracy,F1 Score,Inference Time (ms),Parameters (M)
-GPT-3,94.5,0.92,150,175000
-BERT-Large,89.2,0.87,45,340
-RoBERTa,91.8,0.90,52,355
-T5-Base,88.4,0.86,38,220
-DistilBERT,85.1,0.82,18,66
+Model,Tool Use Accuracy,Multi-Step Planning,Code Generation,Cost per 1M Tokens
+Claude Opus 4.5,97.2,94.8,96.1,15.00
+Claude Sonnet 4.5,95.1,92.3,94.2,3.00
+GPT-4o,94.8,91.5,93.8,5.00
+Gemini 2.0 Pro,93.9,90.2,92.4,3.50
+Claude Haiku,89.3,85.1,87.6,0.25
