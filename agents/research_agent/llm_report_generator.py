@@ -30,28 +30,108 @@ class LLMResearchReportGenerator:
     - Applies learned patterns from historical documents
     - Self-correcting LaTeX generation
     - Context-aware optimization
+    - Supports multiple content sources (research_report, magazine)
     """
 
-    def __init__(self, output_dir: str = "artifacts/output", document_type: str = "research_report"):
+    def __init__(self, output_dir: str = "artifacts/output", document_type: str = "research_report",
+                 content_source: str = None):
         """
         Initialize the LLM report generator.
 
         Args:
             output_dir: Directory to save generated files
-            document_type: Type of document (e.g., 'research_report', 'article', 'technical_doc')
+            document_type: Type of document (e.g., 'research_report', 'article', 'magazine')
+            content_source: Source content folder (e.g., 'research_report', 'magazine').
+                           If None, defaults to document_type.
         """
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
         self.artifacts_dir = Path("artifacts")
-        self.content_dir = self.artifacts_dir / "sample_content"
+        self.document_type = document_type
+
+        # Content source determines which sample_content subdirectory to use
+        self.content_source = content_source or document_type
+        self.content_dir = self.artifacts_dir / "sample_content" / self.content_source
         self.data_dir = self.content_dir / "data"
         self.images_dir = self.content_dir / "images"
-        self.document_type = document_type
+
+        # Load configuration from config.md if available
+        self.config = self._load_config()
 
         # Initialize LLM generator and pattern injector
         self.llm_generator = LLMLaTeXGenerator()
         self.pattern_injector = PatternInjector(document_type=document_type)
         self.pdf_compiler = PDFCompiler()
+
+    def _load_config(self) -> Dict:
+        """Load document configuration from config.md."""
+        config = {
+            "title": "Research Report",
+            "subtitle": "",
+            "author": "Research Team",
+            "date": "",
+            "document_type": self.document_type,
+            "sections": [],
+            "style": {},
+            "options": {}
+        }
+
+        config_path = self.content_dir / "config.md"
+        if not config_path.exists():
+            return config
+
+        with open(config_path, 'r', encoding='utf-8') as f:
+            content = f.read()
+
+        # Parse key-value pairs from config.md
+        current_section = None
+        for line in content.split('\n'):
+            line = line.strip()
+
+            # Track sections
+            if line.startswith('## '):
+                current_section = line[3:].strip().lower()
+                continue
+
+            # Parse key-value pairs
+            if line.startswith('- ') and ':' in line:
+                key_value = line[2:].split(':', 1)
+                if len(key_value) == 2:
+                    # Strip bold markers (**) from key
+                    key = key_value[0].strip().strip('*').lower().replace(' ', '_')
+                    value = key_value[1].strip()
+
+                    # Map to config
+                    if key == 'title':
+                        config['title'] = value
+                    elif key == 'subtitle':
+                        config['subtitle'] = value
+                    elif key == 'author' or key == 'publisher':
+                        config['author'] = value
+                    elif key == 'date':
+                        config['date'] = value
+                    elif key == 'issue':
+                        config['issue'] = value
+                    elif current_section == 'document options':
+                        config['options'][key] = value
+                    elif current_section == 'headers and footers':
+                        config['style'][key] = value
+                    elif current_section == 'style guide':
+                        config['style'][key] = value
+
+            # Parse numbered section list
+            if current_section == 'sections' and line and line[0].isdigit():
+                # e.g., "1. Editor's Letter (introduction.md)"
+                if '(' in line and ')' in line:
+                    start = line.index('(') + 1
+                    end = line.index(')')
+                    filename = line[start:end]
+                    # Extract title (between number and parenthesis)
+                    title_part = line.split('.', 1)[1] if '.' in line else line
+                    title = title_part.split('(')[0].strip()
+                    config['sections'].append({'file': filename, 'title': title})
+
+        return config
 
     def load_markdown_content(self, filename: str) -> str:
         """Load markdown content from the sample_content directory."""
@@ -64,21 +144,26 @@ class LLMResearchReportGenerator:
     def load_all_markdown_sections(self) -> List[Dict]:
         """
         Load all markdown content files and organize into sections.
+        Uses sections from config.md if available, otherwise auto-discovers .md files.
 
         Returns:
             List of section dictionaries with title and content
         """
         sections = []
 
-        # Define the document structure
-        markdown_files = [
-            ("introduction.md", "Introduction"),
-            ("methodology.md", "Methodology"),
-            ("research_areas.md", "Research Areas"),
-            ("detailed_results.md", "Detailed Results"),
-            ("results.md", "Results Discussion"),
-            ("conclusion.md", "Conclusion")
-        ]
+        # Use sections from config if available
+        if self.config.get('sections'):
+            markdown_files = [(s['file'], s['title']) for s in self.config['sections']]
+        else:
+            # Auto-discover .md files (excluding config.md and README.md)
+            exclude_files = {'config.md', 'readme.md'}
+            markdown_files = []
+            if self.content_dir.exists():
+                for md_file in sorted(self.content_dir.glob('*.md')):
+                    if md_file.name.lower() not in exclude_files:
+                        # Generate title from filename
+                        title = md_file.stem.replace('_', ' ').replace('-', ' ').title()
+                        markdown_files.append((md_file.name, title))
 
         for filename, title in markdown_files:
             content = self.load_markdown_content(filename)
@@ -159,7 +244,7 @@ class LLMResearchReportGenerator:
                 guidance = image_guidance.get(filename, {})
 
                 # Calculate path relative to output directory (pdflatex runs from artifacts/output/)
-                relative_path = "../sample_content/images/" + filename
+                relative_path = f"../sample_content/{self.content_source}/images/" + filename
 
                 figures.append({
                     "path": relative_path,
@@ -224,7 +309,9 @@ class LLMResearchReportGenerator:
         """
         print("🚀 LLM-Enhanced LaTeX Generation")
         print("=" * 60)
+        print(f"📁 Content Source: {self.content_source}")
         print(f"📄 Document Type: {self.document_type}")
+        print(f"📝 Title: {self.config.get('title', 'Untitled')}")
         print()
 
         # Get pattern context for Author agent
@@ -264,10 +351,15 @@ class LLMResearchReportGenerator:
                 pattern_context
             )
 
+        # Build title from config
+        title = self.config.get('title', 'Document')
+        if self.config.get('subtitle'):
+            title = f"{title}: {self.config['subtitle']}"
+
         # Create generation request
         request = LaTeXGenerationRequest(
-            title="Advanced AI Research: Transformers and Beyond",
-            author="Dr. Research Smith",
+            title=title,
+            author=self.config.get('author', 'Author'),
             content_sections=sections,
             tables=tables,
             figures=figures,
@@ -381,22 +473,45 @@ class LLMResearchReportGenerator:
 
 def main():
     """Demonstration of LLM-enhanced report generation."""
+    import argparse
+
+    parser = argparse.ArgumentParser(description='LLM-Enhanced Document Generator')
+    parser.add_argument(
+        '--content', '-c',
+        default='research_report',
+        help='Content source folder (e.g., research_report, magazine)'
+    )
+    parser.add_argument(
+        '--type', '-t',
+        default=None,
+        help='Document type for pattern learning (defaults to content source)'
+    )
+    args = parser.parse_args()
+
+    content_source = args.content
+    document_type = args.type or content_source
+
     print("\n" + "=" * 60)
-    print("🧠 LLM-Enhanced Report Generator with Pattern Learning")
+    print("🧠 LLM-Enhanced Document Generator with Pattern Learning")
     print("=" * 60)
+    print(f"📁 Content source: {content_source}")
+    print(f"📄 Document type: {document_type}")
     print()
 
-    generator = LLMResearchReportGenerator()
+    generator = LLMResearchReportGenerator(
+        content_source=content_source,
+        document_type=document_type
+    )
     result = generator.generate_and_compile()
 
     print("\n" + "=" * 60)
     if result["success"]:
-        print("✅ Report generation complete!")
+        print("✅ Document generation complete!")
         print("=" * 60)
         print(f"\n📄 LaTeX: {result['tex_path']}")
         print(f"📑 PDF: {result['pdf_path']}")
     else:
-        print("❌ Report generation failed")
+        print("❌ Document generation failed")
         print("=" * 60)
         if result.get("error"):
             print(f"\nError: {result['error']}")
