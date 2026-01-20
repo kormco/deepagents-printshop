@@ -103,3 +103,7 @@ See you in the next issue.
 ---
 
 **DISCLAIMER**: Deep Agents Magazine is a fictional publication created as sample content for the DeepAgents PrintShop document generation system. All articles, quotes, individuals, and specific statistics are fabricated for demonstration purposes. While real technologies and companies are referenced, this should not be cited as a factual source.
+
+---
+
+**Generated with [DeepAgents PrintShop](https://github.com/kormco/deepagents-printshop)** — An open-source multi-agent document generation system using Claude AI for intelligent LaTeX creation, quality assurance, and visual optimization.

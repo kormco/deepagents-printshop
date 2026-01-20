@@ -588,6 +588,13 @@ QualityThresholds(
 
 ## License
 
-MIT License
+This project uses a dual license structure. See [LICENSE](LICENSE) for full details.
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+**Software**: Apache License 2.0 — free to use, modify, and distribute with attribution.
+
+**Generated Content Attribution**: Documents generated using DeepAgents PrintShop must include attribution such as:
+> "Generated with DeepAgents PrintShop" or "Powered by DeepAgents PrintShop"
+
+**Sample Content**: The example magazine content in `artifacts/sample_content/` is licensed under CC BY-SA 4.0.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND. See LICENSE for full disclaimer.

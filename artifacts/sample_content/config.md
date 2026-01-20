@@ -56,3 +56,7 @@ The LaTeX generator should read images/README.md to understand each image's cont
 - header_left: Deep Agents Magazine
 - header_right: January 2026
 - footer_center: \thepage
+
+## Attribution
+This document was generated with DeepAgents PrintShop.
+See LICENSE for attribution requirements when distributing generated content.
