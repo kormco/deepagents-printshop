@@ -82,10 +82,17 @@ class WorkflowCoordinator:
     - Intelligent iteration logic
     - Error handling and recovery
     - Performance tracking
+    - Multi-content-source support
     """
 
-    def __init__(self):
-        """Initialize workflow coordinator."""
+    def __init__(self, content_source: str = "research_report"):
+        """
+        Initialize workflow coordinator.
+
+        Args:
+            content_source: Content source folder (e.g., 'research_report', 'magazine')
+        """
+        self.content_source = content_source
         self.version_manager = VersionManager()
         self.change_tracker = ChangeTracker()
         self.quality_gate_manager = QualityGateManager()
@@ -93,6 +100,10 @@ class WorkflowCoordinator:
         # Workflow tracking
         self.active_workflows: Dict[str, WorkflowExecution] = {}
         self.completed_workflows: List[WorkflowExecution] = []
+
+        # Set up paths based on content source
+        self.content_dir = Path(f"artifacts/sample_content/{content_source}")
+        self.output_filename = content_source  # e.g., 'magazine' or 'research_report'
 
     def create_workflow(self, workflow_id: str, starting_version: str) -> WorkflowExecution:
         """
@@ -142,7 +153,7 @@ class WorkflowCoordinator:
             # Import content editor here to avoid circular imports
             from agents.content_editor.versioned_agent import VersionedContentEditorAgent
 
-            agent = VersionedContentEditorAgent()
+            agent = VersionedContentEditorAgent(content_source=self.content_source)
 
             # Check if target version already exists
             existing_version = self.version_manager.get_version(target_version)
@@ -219,7 +230,7 @@ class WorkflowCoordinator:
             # Import LaTeX specialist here to avoid circular imports
             from agents.latex_specialist.agent import LaTeXSpecialistAgent
 
-            agent = LaTeXSpecialistAgent()
+            agent = LaTeXSpecialistAgent(content_source=self.content_source)
 
             # Check if target version already exists
             existing_version = self.version_manager.get_version(target_version)
@@ -408,8 +419,8 @@ class WorkflowCoordinator:
                 print("👁️ Executing Visual QA Analysis")
 
                 # Visual QA analyzes and potentially improves the PDF
-                # The PDF should be at artifacts/output/research_report.pdf
-                pdf_path = "artifacts/output/research_report.pdf"
+                # PDF path based on content source
+                pdf_path = f"artifacts/output/{self.output_filename}.pdf"
 
                 # Use Visual QA Feedback Agent for analysis and improvements
                 import sys

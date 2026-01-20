@@ -31,23 +31,26 @@ class VersionedContentEditorAgent:
     - Integration with existing content review workflow
     """
 
-    def __init__(self, memory_dir: str = ".deepagents/content_editor/memories"):
+    def __init__(self, memory_dir: str = ".deepagents/content_editor/memories",
+                 content_source: str = "research_report"):
         """
         Initialize the versioned content editor agent.
 
         Args:
             memory_dir: Directory for storing agent memories
+            content_source: Content source folder (e.g., 'research_report', 'magazine')
         """
         self.memory_dir = Path(memory_dir)
         self.memory_dir.mkdir(parents=True, exist_ok=True)
+        self.content_source = content_source
 
         # Initialize components
         self.content_reviewer = ContentReviewer()
         self.version_manager = VersionManager()
         self.change_tracker = ChangeTracker()
 
-        # Paths
-        self.input_dir = Path("artifacts/sample_content")
+        # Paths - use content source subdirectory
+        self.input_dir = Path(f"artifacts/sample_content/{content_source}")
         self.reports_dir = Path("artifacts/agent_reports/quality")
 
         # Ensure directories exist

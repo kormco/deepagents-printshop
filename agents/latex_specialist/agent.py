@@ -33,15 +33,18 @@ class LaTeXSpecialistAgent:
     - Quality progression tracking
     """
 
-    def __init__(self, memory_dir: str = ".deepagents/latex_specialist/memories"):
+    def __init__(self, memory_dir: str = ".deepagents/latex_specialist/memories",
+                 content_source: str = "research_report"):
         """
         Initialize the LaTeX specialist agent.
 
         Args:
             memory_dir: Directory for storing agent memories
+            content_source: Content source folder (e.g., 'research_report', 'magazine')
         """
         self.memory_dir = Path(memory_dir)
         self.memory_dir.mkdir(parents=True, exist_ok=True)
+        self.content_source = content_source
 
         # Initialize components
         self.latex_analyzer = LaTeXAnalyzer()
@@ -52,6 +55,7 @@ class LaTeXSpecialistAgent:
         # Paths
         self.reports_dir = Path("artifacts/agent_reports/quality")
         self.reports_dir.mkdir(parents=True, exist_ok=True)
+        self.output_filename = content_source  # e.g., 'magazine' or 'research_report'
 
         # Initialize memory
         self.init_memory()

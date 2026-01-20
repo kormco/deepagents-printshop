@@ -300,6 +300,104 @@ class LLMResearchReportGenerator:
 
         return guidance
 
+    def _get_magazine_requirements(self) -> List[str]:
+        """Get magazine-specific LaTeX requirements."""
+        return [
+            """MAGAZINE COVER PAGE REQUIREMENTS:
+- Create a COVER PAGE as the FIRST page with NO page number
+- Use \\thispagestyle{empty} for cover page
+- Include a FULL-PAGE background image using:
+  \\usepackage{eso-pic}
+  \\AddToShipoutPictureBG*{\\includegraphics[width=\\paperwidth,height=\\paperheight]{cover-image.jpg}}
+- IMPORTANT: Ensure text is READABLE over the background image:
+  - Add a semi-transparent dark overlay behind text using tikz:
+    \\usepackage{tikz}
+    \\begin{tikzpicture}[remember picture,overlay]
+    \\fill[black,opacity=0.5] (current page.north west) rectangle ([yshift=-4cm]current page.north east);
+    \\end{tikzpicture}
+  - OR use text with dark shadow/outline for contrast:
+    \\usepackage{contour}
+    \\contourlength{1pt}
+    \\contour{black}{\\textcolor{white}{TITLE TEXT}}
+  - OR place text in a colored box:
+    \\colorbox{black!70}{\\textcolor{white}{\\Huge\\textbf{DEEP AGENTS}}}
+- Overlay the magazine title "Deep Agents" in LARGE text with good contrast
+- Add subtitle below the title
+- Add issue info (Volume 1, Issue 1 | January 2026) near the bottom
+- Add a \\newpage after the cover""",
+
+            """MAGAZINE LAYOUT REQUIREMENTS:
+- Use TWO-COLUMN layout for article content with \\usepackage{multicol}
+- Start each major article/section with \\begin{multicols}{2} and end with \\end{multicols}
+- Keep the Table of Contents in single-column format
+- IMPORTANT PARAGRAPH FORMATTING:
+  - Use standard LaTeX paragraph spacing - do NOT add manual \\vspace between paragraphs
+  - Let LaTeX handle paragraph indentation naturally
+  - Do NOT use \\\\  or \\newline to force line breaks within paragraphs
+  - Keep paragraphs as flowing text, not broken up artificially
+- For TABLES: End multicols BEFORE the table, then restart multicols AFTER:
+  \\end{multicols}
+  \\begin{table}[H] ... \\end{table}
+  \\begin{multicols}{2}
+- For FULL-WIDTH FIGURES: Same pattern - exit multicols, place figure*, re-enter multicols
+- AVOID using \\columnbreak except when absolutely necessary""",
+
+            """MAGAZINE TYPOGRAPHY:
+- Use DROP CAPS for the first letter of each article using lettrine package:
+  \\usepackage{lettrine}
+  IMPORTANT: Configure lettrine to avoid text overlap:
+  \\lettrine[lines=2, loversize=0.1, lraise=0.1, nindent=0.5em]{D}{ear} Reader,
+  - Use lines=2 (not 3) for better text flow
+  - Add nindent=0.5em to prevent following lines from overlapping
+  - Only apply to the FIRST WORD of each article, not mid-paragraph
+  - Ensure the text after the drop cap starts on a new baseline
+- Use PULL QUOTES for emphasis - create a pullquote environment:
+  \\newenvironment{pullquote}{\\begin{center}\\large\\itshape}{\\end{center}}
+- Use larger section titles with \\usepackage{titlesec}
+- Add decorative lines or rules between sections
+- REDUCE LIST SPACING: Use compact lists with reduced spacing:
+  \\usepackage{enumitem}
+  \\setlist{nosep, topsep=0pt, partopsep=0pt, itemsep=2pt}
+  This prevents excessive whitespace between bullet points""",
+
+            """MAGAZINE STYLING:
+- Headers should show "Deep Agents Magazine" on left, page number on right
+- NO page numbers on cover page or table of contents
+- Use a clean, modern sans-serif font if available (or stick with lmodern)
+- Add generous margins for readability
+- Include horizontal rules (\\rule) to separate articles
+- Style tables to look modern and clean""",
+
+            """FIGURE PLACEMENT FOR MAGAZINE:
+- PREFER simple figure environments over wrapfigure to avoid text flow issues
+- For images within multicols, use:
+  \\begin{figure}[H]
+  \\centering
+  \\includegraphics[width=\\columnwidth]{image.jpg}
+  \\caption{Caption text}
+  \\end{figure}
+- AVOID wrapfigure - it causes paragraph formatting problems in multicols
+- AVOID negative \\vspace commands around figures
+- DYNAMIC IMAGE SIZING: Scale images based on content:
+  - Column images: width=\\columnwidth (full column width)
+  - Smaller images: width=0.8\\columnwidth
+  - Full-width images: Exit multicols, use figure* environment, re-enter multicols
+- For CHARTS and DATA VISUALIZATIONS: Place at full column width for readability
+- Add stylish captions with \\usepackage{caption} customization
+- The cover-image.jpg should ONLY be used on the cover page background
+- PREVENT IMAGE OVERFLOW: Always use relative widths (\\columnwidth, \\textwidth)"""
+        ]
+
+    def _get_research_report_requirements(self) -> List[str]:
+        """Get research report-specific LaTeX requirements."""
+        return [
+            "Use standard academic article format",
+            "Include abstract if content has one",
+            "Use numbered sections and subsections",
+            "Format references properly if bibliography exists",
+            "Use single-column layout throughout"
+        ]
+
     def generate_with_patterns(self) -> LaTeXGenerationResult:
         """
         Generate LaTeX document using LLM with learned patterns.
@@ -335,14 +433,21 @@ class LLMResearchReportGenerator:
         print(f"🖼️  Found {len(figures)} figures")
         print()
 
-        # Build requirements list with pattern context
+        # Build base requirements
         requirements = [
-            "Use professional typography packages (microtype, lmodern)",
+            "Use professional typography packages (lmodern)",
             "Format tables with booktabs package",
             "Include proper hyperref setup for navigation",
             "Use appropriate section hierarchy",
             "Add proper spacing and layout"
         ]
+
+        # Add document-type-specific requirements
+        if self.content_source == 'magazine' or self.document_type == 'magazine':
+            print("📰 Adding magazine-specific styling requirements")
+            requirements.extend(self._get_magazine_requirements())
+        else:
+            requirements.extend(self._get_research_report_requirements())
 
         # Add pattern-based requirements
         if pattern_context:
@@ -405,7 +510,8 @@ class LLMResearchReportGenerator:
             }
 
         latex_content = result.latex_content
-        tex_path = self.output_dir / "research_report.tex"
+        output_filename = f"{self.content_source}.tex"
+        tex_path = self.output_dir / output_filename
 
         # Pre-validation: Check for truncated output
         if '\\end{document}' not in latex_content:
