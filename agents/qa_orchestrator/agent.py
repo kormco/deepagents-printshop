@@ -465,7 +465,7 @@ class QAOrchestratorAgent:
 
 def main():
     """Run the QA orchestrator agent."""
-    print("🎯 Starting QA Orchestrator Agent")
+    print("[*] Starting QA Orchestrator Agent")
     print("=" * 70)
 
     # Initialize agent

@@ -132,26 +132,88 @@ class LLMResearchReportGenerator:
 
     def load_figures(self) -> List[Dict]:
         """
-        Discover figure files in images directory.
+        Discover figure files in images directory and load placement guidance from README.
 
         Returns:
-            List of figure dictionaries
+            List of figure dictionaries with descriptions and placement guidance
         """
         figures = []
 
-        if self.images_dir.exists():
-            # Look for common image extensions
-            for ext in ['*.png', '*.jpg', '*.jpeg', '*.pdf']:
-                for img_path in self.images_dir.glob(ext):
-                    # Generate caption from filename
-                    caption = img_path.stem.replace('_', ' ').title()
-                    figures.append({
-                        "path": str(img_path.relative_to(self.output_dir.parent)),
-                        "caption": caption,
-                        "width": "0.8\\textwidth"
-                    })
+        if not self.images_dir.exists():
+            return figures
+
+        # Load image descriptions from README.md if it exists
+        image_guidance = {}
+        readme_path = self.images_dir / "README.md"
+        if readme_path.exists():
+            with open(readme_path, 'r', encoding='utf-8') as f:
+                readme_content = f.read()
+                image_guidance = self._parse_image_readme(readme_content)
+
+        # Look for common image extensions
+        for ext in ['*.png', '*.jpg', '*.jpeg', '*.pdf']:
+            for img_path in self.images_dir.glob(ext):
+                filename = img_path.name
+
+                # Get guidance from README if available
+                guidance = image_guidance.get(filename, {})
+
+                # Calculate path relative to output directory (pdflatex runs from artifacts/output/)
+                relative_path = "../sample_content/images/" + filename
+
+                figures.append({
+                    "path": relative_path,
+                    "caption": guidance.get("caption", img_path.stem.replace('_', ' ').replace('-', ' ').title()),
+                    "width": guidance.get("width", "0.8\\textwidth"),
+                    "description": guidance.get("description", ""),
+                    "placement": guidance.get("placement", "")
+                })
 
         return figures
+
+    def _parse_image_readme(self, readme_content: str) -> Dict:
+        """
+        Parse the images README.md to extract image descriptions and placement guidance.
+
+        Returns:
+            Dictionary mapping filename to guidance dict
+        """
+        guidance = {}
+        current_file = None
+        current_data = {}
+
+        for line in readme_content.split('\n'):
+            line = line.strip()
+
+            # Detect image filename (e.g., **cover-image.jpg**)
+            if line.startswith('**') and line.endswith('**') and ('.' in line):
+                # Save previous entry
+                if current_file:
+                    guidance[current_file] = current_data
+
+                current_file = line.strip('*')
+                current_data = {}
+
+            # Parse description, placement, caption
+            elif current_file and line.startswith('- '):
+                if line.startswith('- Description:'):
+                    current_data['description'] = line.replace('- Description:', '').strip()
+                elif line.startswith('- Placement:'):
+                    current_data['placement'] = line.replace('- Placement:', '').strip()
+                elif line.startswith('- Caption suggestion:'):
+                    current_data['caption'] = line.replace('- Caption suggestion:', '').strip().strip('"')
+                elif line.startswith('- Style:'):
+                    # Check for width hints in style
+                    if '40%' in line:
+                        current_data['width'] = "0.4\\textwidth"
+                    elif '30%' in line:
+                        current_data['width'] = "0.3\\textwidth"
+
+        # Save last entry
+        if current_file:
+            guidance[current_file] = current_data
+
+        return guidance
 
     def generate_with_patterns(self) -> LaTeXGenerationResult:
         """
@@ -231,9 +293,12 @@ class LLMResearchReportGenerator:
 
         return result
 
-    def generate_and_compile(self) -> Dict:
+    def generate_and_compile(self, max_llm_corrections: int = 3) -> Dict:
         """
-        Generate LaTeX and compile to PDF.
+        Generate LaTeX and compile to PDF with LLM self-correction loop.
+
+        Args:
+            max_llm_corrections: Maximum LLM self-correction attempts
 
         Returns:
             Dictionary with paths and status
@@ -247,36 +312,70 @@ class LLMResearchReportGenerator:
                 "error": result.error_message
             }
 
-        # Save LaTeX file
+        latex_content = result.latex_content
         tex_path = self.output_dir / "research_report.tex"
-        with open(tex_path, 'w', encoding='utf-8') as f:
-            f.write(result.latex_content)
 
+        # Pre-validation: Check for truncated output
+        if '\\end{document}' not in latex_content:
+            print("⚠️  Generated LaTeX appears truncated (missing \\end{document})")
+            print("🔧 Attempting to complete the document...")
+            latex_content, fixed, _ = self.llm_generator.self_correct_compilation_errors(
+                latex_content,
+                "CRITICAL: Document is truncated and missing \\end{document}. The LaTeX output was cut off. Please complete the document properly, ensuring all environments are closed and the document ends with \\end{document}."
+            )
+            if fixed:
+                print("✅ Document completion successful")
+
+        # Save LaTeX file
+        with open(tex_path, 'w', encoding='utf-8') as f:
+            f.write(latex_content)
         print(f"\n💾 Saved LaTeX to: {tex_path}")
 
-        # Compile to PDF
+        # Compile with LLM self-correction loop
         print("\n📄 Compiling to PDF...")
-        success, message = self.pdf_compiler.compile(str(tex_path))
-
         pdf_path = tex_path.with_suffix('.pdf')
-        pdf_result = {
-            "success": success,
-            "message": message,
-            "pdf_path": str(pdf_path) if success else None
-        }
 
-        if success:
-            print(f"✅ PDF generated: {pdf_path}")
-        else:
-            print(f"❌ PDF compilation failed")
-            print(f"Error: {message}")
+        for attempt in range(max_llm_corrections + 1):
+            success, message = self.pdf_compiler.compile(str(tex_path))
+
+            if success:
+                print(f"✅ PDF generated: {pdf_path}")
+                return {
+                    "success": True,
+                    "tex_path": str(tex_path),
+                    "pdf_path": str(pdf_path),
+                    "latex_result": result,
+                    "compilation_result": {"success": True, "message": message}
+                }
+
+            # Last attempt - give up
+            if attempt == max_llm_corrections:
+                print(f"❌ PDF compilation failed after {max_llm_corrections} LLM correction attempts")
+                print(f"Error: {message}")
+                break
+
+            # Try LLM self-correction
+            print(f"\n🤖 LLM Self-Correction Attempt {attempt + 1}/{max_llm_corrections}...")
+            corrected_latex, fixed, corrections = self.llm_generator.self_correct_compilation_errors(
+                latex_content, message, max_attempts=1
+            )
+
+            if fixed:
+                latex_content = corrected_latex
+                # Save corrected version
+                with open(tex_path, 'w', encoding='utf-8') as f:
+                    f.write(latex_content)
+                print(f"   ✅ Applied corrections: {corrections}")
+            else:
+                print(f"   ❌ LLM could not fix the issue")
+                break
 
         return {
-            "success": pdf_result["success"],
+            "success": False,
             "tex_path": str(tex_path),
-            "pdf_path": pdf_result.get("pdf_path"),
+            "pdf_path": None,
             "latex_result": result,
-            "compilation_result": pdf_result
+            "compilation_result": {"success": False, "message": message}
         }
 
 

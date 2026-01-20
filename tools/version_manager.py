@@ -275,16 +275,22 @@ class VersionManager:
         return True
 
     def _update_current_symlink(self, version_name: str):
-        """Update the 'current' symlink to point to the specified version."""
+        """Update the 'current' pointer to the specified version."""
         current_link = self.content_dir / "current"
         target_dir = version_name
 
-        # Remove existing symlink
-        if current_link.exists() or current_link.is_symlink():
-            current_link.unlink()
-
-        # Create new symlink
-        current_link.symlink_to(target_dir)
+        # Try symlink first, fall back to text file on Windows if permission denied
+        try:
+            # Remove existing symlink
+            if current_link.exists() or current_link.is_symlink():
+                current_link.unlink()
+            # Create new symlink
+            current_link.symlink_to(target_dir)
+        except OSError:
+            # Windows without admin rights - use a text file instead
+            current_file = self.content_dir / "current.txt"
+            with open(current_file, 'w', encoding='utf-8') as f:
+                f.write(version_name)
 
     def get_version_stats(self) -> Dict:
         """

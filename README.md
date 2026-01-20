@@ -182,15 +182,19 @@ Based on analysis of previous documents, the following issues appear frequently:
 
 **Prerequisites:**
 - Python 3.11 or higher
-- TeX Live (for LaTeX/PDF compilation)
+- LaTeX distribution (required for PDF compilation):
   - **Ubuntu/Debian:** `sudo apt-get install texlive-latex-base texlive-latex-extra texlive-fonts-recommended`
   - **macOS:** `brew install --cask mactex` or `brew install texlive`
-  - **Windows:** Download and install [MiKTeX](https://miktex.org/download) or [TeX Live](https://tug.org/texlive/)
+  - **Windows:** Download and install **[MiKTeX](https://miktex.org/download)** (recommended) or [TeX Live](https://tug.org/texlive/)
+    - MiKTeX auto-installs missing packages on first use
+    - After install, verify with: `pdflatex --version`
 - Poppler (for PDF to image conversion in Visual QA)
   - **Ubuntu/Debian:** `sudo apt-get install poppler-utils`
   - **macOS:** `brew install poppler`
   - **Windows:** Download from [Poppler for Windows](https://github.com/oschwartz10612/poppler-windows/releases/) and add to PATH
 - Anthropic API key (for Claude)
+
+> **Windows Users:** MiKTeX is required to compile LaTeX to PDF. Without it, the pipeline will generate `.tex` files but cannot produce PDFs. The Visual QA stage also requires Poppler for PDF-to-image conversion.
 
 **Setup:**
 

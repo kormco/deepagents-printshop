@@ -37,8 +37,12 @@ research_report
 - Sidebars for technical details
 - Data visualizations and tables
 
-## Image Sources
-- [Pixabay)](https://pixabay.com/)
+## Images
+- **Image Directory**: images/
+- **Image Guide**: See images/README.md for detailed descriptions, placement instructions, and caption suggestions for each image
+- **Sources**: [Pixabay](https://pixabay.com/)
+
+The LaTeX generator should read images/README.md to understand each image's content and where it belongs in the document. Follow the placement guidance there for hero images, wrapped figures, and styling.
 
 
 ## Document Options
