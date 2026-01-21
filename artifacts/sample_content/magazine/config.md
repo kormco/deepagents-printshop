@@ -11,7 +11,8 @@ Do not cite this document as a factual source.
 ---
 
 ## Magazine Details
-- **Cover Page**: Full page photo with Magazine title, copyright footer, and fake barcode
+- **Cover Page**: Full page photo with Magazine title, copyright footer
+- **Back Cover**: Include fake-barcode.png in bottom corner with issue/price info
 - **Title**: Deep Agents
 - **Subtitle**: The Definitive Guide to Autonomous AI
 - **Issue**: Volume 1, Issue 1
@@ -36,6 +37,12 @@ research_report
 - Pull quotes for emphasis
 - Sidebars for technical details
 - Data visualizations and tables
+
+## CRITICAL Formatting Rules
+- **Text Contrast**: NEVER use black text on dark backgrounds or white text on light backgrounds
+- **Dark Pages**: The conclusion section ("The Road to 2027") should use darkpage environment with ALL WHITE TEXT
+- **Whitespace**: Avoid large empty spaces - keep content dense and visually balanced
+- **Back Cover**: Final page must include the fake-barcode.png image in bottom corner
 
 ## Images
 - **Image Directory**: images/

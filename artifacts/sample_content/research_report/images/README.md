@@ -2,6 +2,14 @@
 
 This directory contains image assets for the LaTeX report.
 
+## Available Images
+
+**performance_comparison.png**
+- Description: A dual-panel chart showing (1) Accuracy and F1 Score comparison across models as grouped bar chart, and (2) Speed-Accuracy trade-off as scatter plot
+- Placement: Results section, after discussing the performance metrics comparison
+- Caption suggestion: "Model Performance Comparison: (a) Accuracy and F1 Score metrics for each model, (b) Speed-accuracy trade-off showing inference time vs accuracy"
+- Width: Full page width recommended (0.9\textwidth)
+
 ## Sample Images Needed
 
 To fully demonstrate the LaTeX report capabilities, place the following types of images in this directory:

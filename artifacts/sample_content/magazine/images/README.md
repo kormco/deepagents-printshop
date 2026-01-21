@@ -58,6 +58,17 @@ When placing images, follow these principles:
 
 ---
 
+## Back Cover Elements (REQUIRED)
+
+**fake-barcode.png**
+- Description: A fake magazine barcode for the back cover, providing authentic magazine look.
+- Placement: MUST be included on the back cover/last page, bottom-right corner.
+- Size: About 1 inch wide (width=1in or width=2.5cm)
+- Style: Standard magazine barcode placement with issue number and price text nearby (e.g., "ISSUE 01 | $9.99 US")
+- Note: This element is REQUIRED for a complete magazine layout.
+
+---
+
 ## Supported Formats
 
 - PNG (recommended for diagrams, screenshots, graphics with transparency)
