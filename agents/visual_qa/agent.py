@@ -331,7 +331,10 @@ class VisualQAFeedbackAgent:
                 # Move generated PDF to desired location
                 generated_pdf = tex_path.replace('.tex', '.pdf')
                 if os.path.exists(generated_pdf) and generated_pdf != output_pdf:
-                    os.rename(generated_pdf, output_pdf)
+                    # Remove existing file first (Windows compatibility)
+                    if os.path.exists(output_pdf):
+                        os.remove(output_pdf)
+                    shutil.move(generated_pdf, output_pdf)
                 return True
 
             # Compilation failed - enter self-correction loop
@@ -362,7 +365,10 @@ class VisualQAFeedbackAgent:
             if success:
                 generated_pdf = tex_path.replace('.tex', '.pdf')
                 if os.path.exists(generated_pdf) and generated_pdf != output_pdf:
-                    os.rename(generated_pdf, output_pdf)
+                    # Remove existing file first (Windows compatibility)
+                    if os.path.exists(output_pdf):
+                        os.remove(output_pdf)
+                    shutil.move(generated_pdf, output_pdf)
                 print(f"✅ LLM self-correction successful! PDF generated.")
                 return True
             else:

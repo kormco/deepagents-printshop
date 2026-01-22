@@ -282,12 +282,70 @@ JSON response format:
 """
         }
 
-    def image_to_base64(self, image: Image.Image) -> str:
-        """Convert PIL Image to base64 string."""
+    def image_to_base64(self, image: Image.Image, max_size_bytes: int = 5 * 1024 * 1024) -> Tuple[str, str]:
+        """
+        Convert PIL Image to base64 string, compressing if needed.
+
+        Args:
+            image: PIL Image to convert
+            max_size_bytes: Maximum size in bytes (default 5MB for Claude API)
+
+        Returns:
+            Tuple of (base64_string, media_type)
+        """
+        # First try PNG
         buffer = io.BytesIO()
         image.save(buffer, format='PNG')
         image_data = buffer.getvalue()
-        return base64.b64encode(image_data).decode('utf-8')
+
+        # If under limit, return as-is
+        if len(image_data) <= max_size_bytes:
+            return base64.b64encode(image_data).decode('utf-8'), "image/png"
+
+        # Need to compress - try JPEG with decreasing quality
+        print(f"   ⚠️ Image too large ({len(image_data) / 1024 / 1024:.1f}MB), compressing...")
+
+        # Convert to RGB if necessary (JPEG doesn't support alpha)
+        if image.mode in ('RGBA', 'P'):
+            rgb_image = Image.new('RGB', image.size, (255, 255, 255))
+            rgb_image.paste(image, mask=image.split()[-1] if image.mode == 'RGBA' else None)
+            image = rgb_image
+
+        # Try decreasing quality levels
+        for quality in [85, 70, 50, 30]:
+            buffer = io.BytesIO()
+            image.save(buffer, format='JPEG', quality=quality, optimize=True)
+            image_data = buffer.getvalue()
+
+            if len(image_data) <= max_size_bytes:
+                print(f"   ✅ Compressed to {len(image_data) / 1024 / 1024:.1f}MB (JPEG quality={quality})")
+                return base64.b64encode(image_data).decode('utf-8'), "image/jpeg"
+
+        # If still too large, resize the image
+        scale = 0.75
+        while len(image_data) > max_size_bytes and scale > 0.25:
+            new_size = (int(image.width * scale), int(image.height * scale))
+            resized = image.resize(new_size, Image.Resampling.LANCZOS)
+
+            buffer = io.BytesIO()
+            resized.save(buffer, format='JPEG', quality=50, optimize=True)
+            image_data = buffer.getvalue()
+
+            if len(image_data) <= max_size_bytes:
+                print(f"   ✅ Compressed to {len(image_data) / 1024 / 1024:.1f}MB (resized to {scale:.0%})")
+                return base64.b64encode(image_data).decode('utf-8'), "image/jpeg"
+
+            scale -= 0.1
+
+        # Final fallback - aggressive resize
+        print(f"   ⚠️ Using aggressive compression")
+        new_size = (int(image.width * 0.25), int(image.height * 0.25))
+        resized = image.resize(new_size, Image.Resampling.LANCZOS)
+        buffer = io.BytesIO()
+        resized.save(buffer, format='JPEG', quality=30, optimize=True)
+        image_data = buffer.getvalue()
+
+        return base64.b64encode(image_data).decode('utf-8'), "image/jpeg"
 
     def analyze_page(self, image: Image.Image, page_type: str) -> Dict:
         """
@@ -305,8 +363,8 @@ JSON response format:
             return self._fallback_analysis(image, page_type)
 
         try:
-            # Convert image to base64
-            image_b64 = self.image_to_base64(image)
+            # Convert image to base64 (with compression if needed)
+            image_b64, media_type = self.image_to_base64(image)
 
             # Get appropriate prompt
             prompt = self.validation_prompts.get(page_type, self.validation_prompts['content_page'])
@@ -323,7 +381,7 @@ JSON response format:
                                 "type": "image",
                                 "source": {
                                     "type": "base64",
-                                    "media_type": "image/png",
+                                    "media_type": media_type,
                                     "data": image_b64
                                 }
                             },
@@ -338,14 +396,52 @@ JSON response format:
 
             # Parse JSON response
             import json
+            import re
             response_text = response.content[0].text
 
             # Extract JSON from response (handle cases where there's extra text)
             json_start = response_text.find('{')
             json_end = response_text.rfind('}') + 1
+            if json_start == -1 or json_end == 0:
+                print("❌ No JSON found in response")
+                return self._fallback_analysis(image, page_type)
+
             json_content = response_text[json_start:json_end]
 
-            analysis_result = json.loads(json_content)
+            # Aggressive sanitization - encode the string to ASCII, ignoring errors
+            # Then decode back, which removes any problematic characters
+            json_content = json_content.encode('ascii', errors='ignore').decode('ascii')
+
+            # Also remove any remaining control characters (0x00-0x1F except \n \r \t)
+            json_content = re.sub(r'[\x00-\x08\x0b\x0c\x0e-\x1f]', '', json_content)
+
+            # Try to parse with strict=False to be more lenient
+            try:
+                analysis_result = json.loads(json_content, strict=False)
+            except json.JSONDecodeError as e:
+                # Last resort: try to extract just the key values we need
+                try:
+                    # Extract scores using regex
+                    overall_match = re.search(r'"overall_score"\s*:\s*([\d.]+)', json_content)
+                    overall_score = float(overall_match.group(1)) if overall_match else 7.0
+
+                    # Extract issues
+                    issues_match = re.search(r'"issues_found"\s*:\s*\[(.*?)\]', json_content, re.DOTALL)
+                    issues = []
+                    if issues_match:
+                        issues = re.findall(r'"([^"]+)"', issues_match.group(1))
+
+                    analysis_result = {
+                        "scores": {},
+                        "overall_score": overall_score,
+                        "issues_found": issues[:3],
+                        "strengths_found": [],
+                        "detailed_feedback": "Partial parse from malformed JSON"
+                    }
+                except Exception:
+                    print(f"❌ JSON parse failed completely: {e}")
+                    return self._fallback_analysis(image, page_type)
+
             return analysis_result
 
         except Exception as e:

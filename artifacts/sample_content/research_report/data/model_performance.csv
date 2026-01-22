@@ -1,0 +1,7 @@
+Model,Accuracy,F1 Score,Inference Time (ms),Parameters (M)
+BERT-Base,89.2,88.7,45,110
+RoBERTa,92.1,91.8,48,125
+DistilBERT,86.4,85.9,18,66
+T5-Base,90.8,90.2,52,220
+GPT-3,94.5,94.1,120,175000
+Baseline,78.3,76.2,12,5

@@ -1,0 +1,6 @@
+Framework,Latency (ms),Token Efficiency,Success Rate,Production Status
+LangGraph,145,92,94.2,GA 1.0
+LangChain,312,78,91.8,GA 1.0
+CrewAI,234,85,89.5,GA
+OpenAI Swarm,198,88,92.1,Beta
+AutoGen,287,81,88.3,GA

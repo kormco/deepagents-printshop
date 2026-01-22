@@ -33,18 +33,21 @@ class QAOrchestratorAgent:
     - Comprehensive reporting
     """
 
-    def __init__(self, memory_dir: str = ".deepagents/qa_orchestrator/memories"):
+    def __init__(self, memory_dir: str = ".deepagents/qa_orchestrator/memories",
+                 content_source: str = "research_report"):
         """
         Initialize the QA orchestrator agent.
 
         Args:
             memory_dir: Directory for storing agent memories
+            content_source: Content source folder (e.g., 'research_report', 'magazine')
         """
         self.memory_dir = Path(memory_dir)
         self.memory_dir.mkdir(parents=True, exist_ok=True)
+        self.content_source = content_source
 
         # Initialize components
-        self.workflow_coordinator = WorkflowCoordinator()
+        self.workflow_coordinator = WorkflowCoordinator(content_source=content_source)
         self.quality_gate_manager = QualityGateManager()
         self.version_manager = VersionManager()
 
@@ -465,11 +468,24 @@ class QAOrchestratorAgent:
 
 def main():
     """Run the QA orchestrator agent."""
-    print("🎯 Starting QA Orchestrator Agent")
-    print("=" * 70)
+    import argparse
 
-    # Initialize agent
-    agent = QAOrchestratorAgent()
+    parser = argparse.ArgumentParser(description='QA Orchestrator Agent')
+    parser.add_argument(
+        '--content', '-c',
+        default='research_report',
+        help='Content source folder (e.g., research_report, magazine)'
+    )
+    args = parser.parse_args()
+
+    content_source = args.content
+
+    print("[*] Starting QA Orchestrator Agent")
+    print("=" * 70)
+    print(f"Content source: {content_source}")
+
+    # Initialize agent with content source
+    agent = QAOrchestratorAgent(content_source=content_source)
 
     try:
         # Run complete QA pipeline
@@ -479,10 +495,10 @@ def main():
         )
 
         print("\n" + "=" * 70)
-        print("✅ QA Orchestration complete!")
+        print("QA Orchestration complete!")
 
     except Exception as e:
-        print(f"❌ Error: {e}")
+        print(f"Error: {e}")
         import traceback
         traceback.print_exc()
 

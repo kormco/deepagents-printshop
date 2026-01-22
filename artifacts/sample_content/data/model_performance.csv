@@ -1,6 +1,0 @@
-Model,Accuracy,F1 Score,Inference Time (ms),Parameters (M)
-GPT-3,94.5,0.92,150,175000
-BERT-Large,89.2,0.87,45,340
-RoBERTa,91.8,0.90,52,355
-T5-Base,88.4,0.86,38,220
-DistilBERT,85.1,0.82,18,66
