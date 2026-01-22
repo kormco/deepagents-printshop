@@ -513,8 +513,16 @@ class LLMResearchReportGenerator:
         This is a safety net for when the LLM generation doesn't include images.
         Note: PrintShop attribution is handled separately in generate_and_compile().
         """
-        # Check if figures are already included
-        if '\\includegraphics' in latex_content:
+        # Check if figures are already included (uncommented)
+        # Look for \includegraphics that's NOT on a line starting with %
+        has_uncommented_figures = False
+        for line in latex_content.split('\n'):
+            stripped = line.strip()
+            if '\\includegraphics' in stripped and not stripped.startswith('%'):
+                has_uncommented_figures = True
+                break
+
+        if has_uncommented_figures:
             return latex_content  # Figures already present
 
         figures = self.load_figures()
