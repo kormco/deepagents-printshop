@@ -113,6 +113,10 @@ class LLMResearchReportGenerator:
                         config['date'] = value
                     elif key == 'issue':
                         config['issue'] = value
+                    elif key == 'price':
+                        config['price'] = value
+                    elif key == 'barcode_text':
+                        config['barcode_text'] = value
                     elif current_section == 'document options':
                         config['options'][key] = value
                     elif current_section == 'headers and footers':
@@ -256,6 +260,287 @@ class LLMResearchReportGenerator:
                 })
 
         return figures
+
+    def _fix_common_latex_issues(self, latex_content: str) -> str:
+        """
+        Fix common LaTeX issues that the LLM often generates.
+
+        These are syntactic issues that prevent compilation.
+        """
+        import re
+        fixes_applied = []
+
+        # Fix invalid TikZ options
+        # "letter spacing=X" is not a valid TikZ option, remove it
+        if 'letter spacing=' in latex_content:
+            latex_content = re.sub(r',?\s*letter spacing=[^,\]]+', '', latex_content)
+            fixes_applied.append("Removed invalid 'letter spacing' TikZ option")
+
+        # Fix other common invalid TikZ options
+        invalid_tikz_opts = ['word spacing=', 'tracking=', 'stretch=']
+        for opt in invalid_tikz_opts:
+            if opt in latex_content:
+                latex_content = re.sub(rf',?\s*{re.escape(opt)}[^,\]]+', '', latex_content)
+                fixes_applied.append(f"Removed invalid '{opt[:-1]}' TikZ option")
+
+        if fixes_applied:
+            print(f"🔧 Fixed LaTeX issues: {', '.join(fixes_applied)}")
+
+        return latex_content
+
+    def _fix_image_paths(self, latex_content: str) -> str:
+        """
+        Fix image paths in LaTeX content.
+
+        The LLM often generates incorrect relative paths like:
+        - sample_content/magazine/images/image.jpg
+        - artifacts/sample_content/magazine/images/image.jpg
+        - images/image.jpg
+        - example-image (placeholder)
+
+        The correct path (relative to artifacts/output/) is:
+        - ../sample_content/{content_source}/images/image.jpg
+        """
+        import re
+
+        correct_prefix = f"../sample_content/{self.content_source}/images/"
+
+        # Get list of actual image files to use for replacements
+        actual_images = []
+        if self.images_dir.exists():
+            for ext in ['*.png', '*.jpg', '*.jpeg']:
+                actual_images.extend([f.name for f in self.images_dir.glob(ext)])
+
+        # Separate special images from content images
+        cover_image = None
+        barcode_image = None
+        content_images = []
+        for img in actual_images:
+            if 'cover' in img.lower():
+                cover_image = img
+            elif 'barcode' in img.lower():
+                barcode_image = img
+            else:
+                content_images.append(img)
+
+        # Track which content images have been used
+        image_index = [0]  # Use list to allow mutation in nested function
+
+        def fix_path(match):
+            full_match = match.group(0)
+            path = match.group(1)
+
+            # Extract just the filename from any path
+            filename = path.split('/')[-1]
+
+            # Check if this is a placeholder image
+            is_placeholder = filename.startswith('example-image') or filename == 'placeholder'
+
+            # Check for special images by context
+            if 'paperwidth' in full_match or 'paperheight' in full_match:
+                # This is likely a cover/background image
+                if cover_image:
+                    return full_match.replace(path, correct_prefix + cover_image)
+
+            if is_placeholder and content_images:
+                # Replace placeholder with actual content image
+                actual_file = content_images[image_index[0] % len(content_images)]
+                image_index[0] += 1
+                return full_match.replace(path, correct_prefix + actual_file)
+
+            # Skip if already has correct prefix with a real filename
+            if path.startswith(correct_prefix) and not is_placeholder:
+                return full_match
+
+            # Reconstruct with correct prefix
+            new_path = correct_prefix + filename
+            return full_match.replace(path, new_path)
+
+        # Match \includegraphics[...]{path} or \includegraphics{path}
+        pattern = r'\\includegraphics(?:\[[^\]]*\])?\{([^}]+)\}'
+        new_content, count = re.subn(pattern, fix_path, latex_content)
+
+        if count > 0:
+            # Count how many were actually changed
+            original_paths = re.findall(pattern, latex_content)
+            new_paths = re.findall(pattern, new_content)
+            changes = sum(1 for o, n in zip(original_paths, new_paths) if o != n)
+            if changes > 0:
+                print(f"🔧 Fixed {changes} image path(s)")
+
+        return new_content
+
+    def _ensure_printshop_attribution(self, latex_content: str, figures: list) -> str:
+        """
+        Ensure the document has PrintShop attribution and barcode (if available).
+
+        Reads barcode text from config if available.
+        """
+        # Check if PrintShop attribution already exists
+        if 'DeepAgents PrintShop' in latex_content:
+            return latex_content
+
+        # Find barcode image path if available
+        barcode_path = None
+        for fig in figures:
+            # Extract filename from path to check for barcode
+            fig_path = fig.get('path', '')
+            filename = fig_path.split('/')[-1].lower() if fig_path else ''
+            if 'barcode' in filename:
+                barcode_path = fig_path
+                break
+
+        # Get barcode text from config (e.g., "ISSUE 01 | $9.99 US")
+        barcode_text = self.config.get('barcode_text', '')
+
+        print(f"📄 Adding PrintShop attribution...")
+
+        # Minimal attribution block - just the tool credit and barcode
+        attribution_code = "\n% PrintShop Attribution\n"
+
+        if barcode_path:
+            attribution_code += f"""\\vfill
+\\begin{{center}}
+\\includegraphics[width=1in]{{{barcode_path}}}
+"""
+            if barcode_text:
+                # Escape $ signs for LaTeX
+                barcode_text_escaped = barcode_text.replace('$', '\\$')
+                attribution_code += f"""
+\\vspace{{0.3em}}
+{{\\tiny {barcode_text_escaped}}}
+"""
+            attribution_code += f"""
+\\vspace{{1em}}
+{{\\footnotesize\\itshape Generated by DeepAgents PrintShop}}
+\\end{{center}}
+"""
+        else:
+            attribution_code += """\\vfill
+\\begin{center}
+{\\footnotesize\\itshape Generated by DeepAgents PrintShop}
+\\end{center}
+"""
+
+        # Insert before \end{document}
+        end_doc_pos = latex_content.find('\\end{document}')
+        if end_doc_pos != -1:
+            latex_content = latex_content[:end_doc_pos] + attribution_code + latex_content[end_doc_pos:]
+
+        return latex_content
+
+    def _inject_missing_figures(self, latex_content: str) -> str:
+        """
+        Post-process LaTeX to inject missing figures if the LLM didn't include them.
+
+        This is a safety net for when the LLM generation doesn't include images.
+        Note: PrintShop attribution is handled separately in generate_and_compile().
+        """
+        # Check if figures are already included
+        if '\\includegraphics' in latex_content:
+            return latex_content  # Figures already present
+
+        figures = self.load_figures()
+        if not figures:
+            return latex_content  # No figures to inject
+
+        print(f"🖼️  Injecting {len(figures)} missing figures into LaTeX...")
+
+        # For magazine content, handle special images
+        if self.content_source == 'magazine':
+            # Find the cover image and barcode
+            cover_image = None
+            barcode_image = None
+            other_images = []
+
+            for fig in figures:
+                # Extract filename from path
+                fig_path = fig.get('path', '')
+                filename = fig_path.split('/')[-1].lower() if fig_path else ''
+                if 'cover' in filename:
+                    cover_image = fig
+                elif 'barcode' in filename:
+                    barcode_image = fig
+                else:
+                    other_images.append(fig)
+
+            # Inject cover image as background on first page
+            if cover_image:
+                cover_code = f"""
+% Cover page background
+\\AddToShipoutPictureBG*{{%
+  \\AtPageUpperLeft{{%
+    \\includegraphics[width=\\paperwidth,height=\\paperheight]{{{cover_image['path']}}}%
+  }}%
+}}
+"""
+                # Insert after \begin{document}
+                begin_doc_pos = latex_content.find('\\begin{document}')
+                if begin_doc_pos != -1:
+                    insert_pos = latex_content.find('\n', begin_doc_pos) + 1
+                    latex_content = latex_content[:insert_pos] + cover_code + latex_content[insert_pos:]
+
+            # Inject barcode before \end{document}
+            if barcode_image:
+                barcode_code = f"""
+% Back cover barcode
+\\newpage
+\\thispagestyle{{empty}}
+\\vspace*{{\\fill}}
+\\begin{{center}}
+\\includegraphics[width=1in]{{{barcode_image['path']}}}
+
+\\vspace{{0.3em}}
+{{\\tiny ISSUE 01 | \\$9.99 US}}
+\\end{{center}}
+"""
+                end_doc_pos = latex_content.find('\\end{document}')
+                if end_doc_pos != -1:
+                    latex_content = latex_content[:end_doc_pos] + barcode_code + latex_content[end_doc_pos:]
+
+            # Inject chart images into content sections
+            for fig in other_images:
+                # Extract filename from path
+                fig_path = fig.get('path', '')
+                filename = fig_path.split('/')[-1].lower() if fig_path else ''
+                # Skip certain images that are decorative
+                if any(skip in filename for skip in ['cover', 'logo', 'icon']):
+                    continue
+
+                # For charts and data visualizations, inject after methodology or results sections
+                if 'chart' in filename or 'graph' in filename or 'comparison' in filename:
+                    figure_code = f"""
+\\begin{{figure}}[H]
+\\centering
+\\includegraphics[width=0.9\\textwidth]{{{fig['path']}}}
+\\caption{{{fig.get('caption', 'Figure')}}}
+\\end{{figure}}
+"""
+                    # Try to insert after a results or data section
+                    for section_marker in ['State of AI Agents', 'methodology', 'results', 'data']:
+                        section_pos = latex_content.lower().find(section_marker.lower())
+                        if section_pos != -1:
+                            # Find end of paragraph after section
+                            next_para = latex_content.find('\\end{multicols}', section_pos)
+                            if next_para != -1:
+                                latex_content = latex_content[:next_para] + figure_code + latex_content[next_para:]
+                                break
+        else:
+            # For other document types, inject figures at appropriate locations
+            for fig in figures:
+                figure_code = f"""
+\\begin{{figure}}[H]
+\\centering
+\\includegraphics[width={fig.get('width', '0.8\\\\textwidth')}]{{{fig['path']}}}
+\\caption{{{fig.get('caption', 'Figure')}}}
+\\end{{figure}}
+"""
+                # Insert before \end{document}
+                end_doc_pos = latex_content.find('\\end{document}')
+                if end_doc_pos != -1:
+                    latex_content = latex_content[:end_doc_pos] + figure_code + latex_content[end_doc_pos:]
+
+        return latex_content
 
     def _parse_image_readme(self, readme_content: str) -> Dict:
         """
@@ -489,16 +774,31 @@ You MUST include all these package imports and macro definitions in your documen
         output_filename = f"{self.content_source}.tex"
         tex_path = self.output_dir / output_filename
 
-        # Pre-validation: Check for truncated output
+        # Pre-validation: Check for truncated output FIRST (before figure injection)
+        # This ensures \end{document} exists for subsequent processing
         if '\\end{document}' not in latex_content:
             print("⚠️  Generated LaTeX appears truncated (missing \\end{document})")
             print("🔧 Attempting to complete the document...")
-            latex_content, fixed, _ = self.llm_generator.self_correct_compilation_errors(
-                latex_content,
-                "CRITICAL: Document is truncated and missing \\end{document}. The LaTeX output was cut off. Please complete the document properly, ensuring all environments are closed and the document ends with \\end{document}."
-            )
+            # Use specialized truncation completion (not full document regeneration)
+            latex_content, fixed = self.llm_generator.complete_truncated_document(latex_content)
             if fixed:
                 print("✅ Document completion successful")
+            else:
+                print("⚠️  Document completion failed - will try to compile anyway")
+
+        # Post-process: Inject figures if missing (AFTER self-correction so \end{document} exists)
+        latex_content = self._inject_missing_figures(latex_content)
+
+        # Fix image paths: LLM often generates wrong relative paths
+        # Correct path is ../sample_content/{content_source}/images/ (relative to artifacts/output/)
+        latex_content = self._fix_image_paths(latex_content)
+
+        # Fix common LaTeX issues that LLM generates
+        latex_content = self._fix_common_latex_issues(latex_content)
+
+        # Ensure PrintShop attribution is present (runs after figure injection)
+        figures = self.load_figures()
+        latex_content = self._ensure_printshop_attribution(latex_content, figures)
 
         # Save LaTeX file
         with open(tex_path, 'w', encoding='utf-8') as f:

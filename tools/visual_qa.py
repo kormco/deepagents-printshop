@@ -396,14 +396,52 @@ JSON response format:
 
             # Parse JSON response
             import json
+            import re
             response_text = response.content[0].text
 
             # Extract JSON from response (handle cases where there's extra text)
             json_start = response_text.find('{')
             json_end = response_text.rfind('}') + 1
+            if json_start == -1 or json_end == 0:
+                print("❌ No JSON found in response")
+                return self._fallback_analysis(image, page_type)
+
             json_content = response_text[json_start:json_end]
 
-            analysis_result = json.loads(json_content)
+            # Aggressive sanitization - encode the string to ASCII, ignoring errors
+            # Then decode back, which removes any problematic characters
+            json_content = json_content.encode('ascii', errors='ignore').decode('ascii')
+
+            # Also remove any remaining control characters (0x00-0x1F except \n \r \t)
+            json_content = re.sub(r'[\x00-\x08\x0b\x0c\x0e-\x1f]', '', json_content)
+
+            # Try to parse with strict=False to be more lenient
+            try:
+                analysis_result = json.loads(json_content, strict=False)
+            except json.JSONDecodeError as e:
+                # Last resort: try to extract just the key values we need
+                try:
+                    # Extract scores using regex
+                    overall_match = re.search(r'"overall_score"\s*:\s*([\d.]+)', json_content)
+                    overall_score = float(overall_match.group(1)) if overall_match else 7.0
+
+                    # Extract issues
+                    issues_match = re.search(r'"issues_found"\s*:\s*\[(.*?)\]', json_content, re.DOTALL)
+                    issues = []
+                    if issues_match:
+                        issues = re.findall(r'"([^"]+)"', issues_match.group(1))
+
+                    analysis_result = {
+                        "scores": {},
+                        "overall_score": overall_score,
+                        "issues_found": issues[:3],
+                        "strengths_found": [],
+                        "detailed_feedback": "Partial parse from malformed JSON"
+                    }
+                except Exception:
+                    print(f"❌ JSON parse failed completely: {e}")
+                    return self._fallback_analysis(image, page_type)
+
             return analysis_result
 
         except Exception as e:

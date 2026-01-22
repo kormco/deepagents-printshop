@@ -18,6 +18,8 @@ Do not cite this document as a factual source.
 - **Issue**: Volume 1, Issue 1
 - **Date**: January 2026
 - **Publisher**: DeepAgents Publishing
+- **Price**: $9.99 US
+- **Barcode Text**: ISSUE 01 | $9.99 US
 
 ## Document Type
 research_report
