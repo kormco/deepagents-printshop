@@ -1,5 +1,15 @@
 # Document Configuration
 
+## DISCLAIMER
+
+**THIS IS A FICTIONAL EXAMPLE RESEARCH REPORT FOR DEMONSTRATION PURPOSES ONLY.**
+
+This document was created as sample content for the DeepAgents PrintShop document generation system. While the content references real technologies and industry trends, all data, statistics, and findings are fabricated for illustration purposes. Any resemblance to actual research is coincidental.
+
+Do not cite this document as a factual source.
+
+---
+
 ## Title
 Advanced AI Research: Transformers and Beyond
 

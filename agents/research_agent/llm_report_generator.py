@@ -86,13 +86,24 @@ class LLMResearchReportGenerator:
 
         # Parse key-value pairs from config.md
         current_section = None
+        disclaimer_lines = []
+        in_disclaimer = False
+
         for line in content.split('\n'):
-            line = line.strip()
+            line_stripped = line.strip()
 
             # Track sections
-            if line.startswith('## '):
-                current_section = line[3:].strip().lower()
+            if line_stripped.startswith('## '):
+                current_section = line_stripped[3:].strip().lower()
+                in_disclaimer = (current_section == 'disclaimer')
                 continue
+
+            # Capture disclaimer content (multi-line)
+            if in_disclaimer and line_stripped and not line_stripped.startswith('---'):
+                disclaimer_lines.append(line_stripped)
+                continue
+
+            line = line_stripped  # Use stripped version for rest of parsing
 
             # Parse key-value pairs
             if line.startswith('- ') and ':' in line:
@@ -135,6 +146,10 @@ class LLMResearchReportGenerator:
                     title_part = line.split('.', 1)[1] if '.' in line else line
                     title = title_part.split('(')[0].strip()
                     config['sections'].append({'file': filename, 'title': title})
+
+        # Store disclaimer if found
+        if disclaimer_lines:
+            config['disclaimer'] = ' '.join(disclaimer_lines)
 
         return config
 
@@ -283,8 +298,70 @@ class LLMResearchReportGenerator:
                 latex_content = re.sub(rf',?\s*{re.escape(opt)}[^,\]]+', '', latex_content)
                 fixes_applied.append(f"Removed invalid '{opt[:-1]}' TikZ option")
 
+        # Replace placeholder figures with actual images
+        latex_content = self._replace_placeholder_figures(latex_content)
+
         if fixes_applied:
             print(f"🔧 Fixed LaTeX issues: {', '.join(fixes_applied)}")
+
+        return latex_content
+
+    def _replace_placeholder_figures(self, latex_content: str) -> str:
+        """
+        Replace LLM-generated placeholder figures with actual images.
+
+        The LLM sometimes generates text placeholders like:
+        \\fbox{\\parbox{...}{[Chart Name]}}
+
+        This replaces them with actual \\includegraphics commands.
+        """
+        # Get available images
+        figures = self.load_figures()
+        if not figures:
+            return latex_content
+
+        # Get content images (exclude cover, barcode)
+        content_images = []
+        for fig in figures:
+            fig_path = fig.get('path', '')
+            filename = fig_path.split('/')[-1].lower() if fig_path else ''
+            if not any(skip in filename for skip in ['cover', 'barcode']):
+                content_images.append(fig)
+
+        if not content_images:
+            return latex_content
+
+        # Find and replace placeholder patterns using string operations
+        # Look for \fbox{\parbox patterns that contain bracketed placeholder text
+        lines = latex_content.split('\n')
+        new_lines = []
+        replacements = 0
+        image_idx = 0
+
+        for line in lines:
+            # Check if this line contains a placeholder figure
+            if '\\fbox{\\parbox' in line and '[' in line and ']' in line:
+                # This looks like a placeholder - check for common indicators
+                line_lower = line.lower()
+                is_placeholder = any(indicator in line_lower for indicator in [
+                    'placeholder', 'would be displayed', 'image here',
+                    'chart]', 'graph]', 'figure]', 'comparison]'
+                ])
+
+                if is_placeholder and image_idx < len(content_images):
+                    # Replace with actual image
+                    img = content_images[image_idx]
+                    image_idx += 1
+                    new_line = f"\\includegraphics[width=0.8\\textwidth]{{{img['path']}}}"
+                    new_lines.append(new_line)
+                    replacements += 1
+                    continue
+
+            new_lines.append(line)
+
+        if replacements > 0:
+            print(f"🔧 Replaced {replacements} placeholder figure(s) with actual images")
+            return '\n'.join(new_lines)
 
         return latex_content
 
@@ -702,6 +779,17 @@ You MUST include all these package imports and macro definitions in your documen
             "Use appropriate section hierarchy",
             "Add proper spacing and layout"
         ]
+
+        # Add disclaimer if present in config
+        if self.config.get('disclaimer'):
+            disclaimer_text = self.config['disclaimer']
+            requirements.append(f"""IMPORTANT - DISCLAIMER SECTION:
+Include a prominently styled disclaimer box/section at the VERY BEGINNING of the document (right after the title/maketitle).
+Use a framed box or shaded environment to make it stand out.
+The disclaimer text is:
+"{disclaimer_text}"
+This disclaimer MUST appear before any content sections.""")
+            print("📋 Adding disclaimer requirement")
 
         # Add document-type-specific requirements
         if self.content_source == 'magazine' or self.document_type == 'magazine':
