@@ -6,6 +6,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 DeepAgents PrintShop is a document generation system that produces professional LaTeX documents with comprehensive formatting, citations, tables, images, and diagrams. It uses the DeepAgents CLI framework and runs in Docker with TeX Live for PDF compilation.
 
+Do not hardcode LaTeX output into deterministic logic, primarily make updates to natural language instruction for the LaTeX agent where possible.
+
 ## Common Commands
 
 ### Development Environment
@@ -42,6 +44,16 @@ python -c "from tools.latex_generator import LaTeXGenerator; print('LaTeX genera
 # Test PDF compiler
 python -c "from tools.pdf_compiler import PDFCompiler; PDFCompiler().compile_pdf('artifacts/output/research_report.tex')"
 ```
+
+
+## Prerequisites
+
+**LaTeX Distribution Required**: PDF compilation requires a LaTeX distribution installed on your system. The Docker container includes TeX Live, but if running outside Docker you must install one of:
+- **Windows**: [MiKTeX](https://miktex.org/) - includes pdflatex and automatic package installation
+- **macOS**: [MacTeX](https://www.tug.org/mactex/) or `brew install --cask mactex`
+- **Linux**: TeX Live via `apt install texlive-full` or equivalent
+
+Without a LaTeX distribution, the system can generate `.tex` files but cannot compile them to PDF.
 
 ### Testing and Validation
 No formal test suite exists. Validation is done by:
