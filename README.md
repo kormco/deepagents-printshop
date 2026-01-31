@@ -153,14 +153,6 @@ By using this software, you acknowledge these risks and agree to conduct appropr
 - PDF compilation with pdflatex
 - Hyperlink and cross-reference support
 
-## System Architecture
-
-<img src="architecture.png" width="400">
-
-### Iteration & Recursion Flow
-
-![Iteration & Recursion Flow](recursion-flow.png)
-
 
 ### Agent Nodes & Tools
 
