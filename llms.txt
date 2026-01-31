@@ -1,0 +1,54 @@
+# DeepAgents PrintShop
+
+> Multi-agent LaTeX document generation with automated quality assurance
+
+## What is DeepAgents PrintShop?
+
+DeepAgents PrintShop is an open-source Python system that generates professional LaTeX documents (research reports, magazines) using a multi-agent pipeline coordinated by LangGraph. Each agent specializes in one aspect of document quality: content editing, LaTeX optimization, and visual QA.
+
+## Key Features
+
+- LangGraph StateGraph orchestrates content review, LaTeX optimization, and visual QA agents
+- Quality gates with pass/iterate/escalate decision logic
+- Claude-powered LaTeX generation with self-correcting compilation
+- Visual QA using Claude Vision for PDF layout analysis
+- Pattern learning system that improves quality over successive runs
+- Version tracking with complete change history
+- Supports multiple document types: research reports, magazines, custom
+
+## Tech Stack
+
+- Python 3.10+
+- LangGraph (pipeline orchestration)
+- LangChain + Anthropic Claude (LLM calls)
+- LaTeX / pdflatex (document compilation)
+- Docker (optional, bundles all system deps)
+
+## Installation
+
+```bash
+pip install deepagents-printshop
+```
+
+Or from source:
+
+```bash
+git clone https://github.com/kormco/deepagents-printshop
+cd deepagents-printshop
+pip install -e .
+```
+
+## Usage
+
+```bash
+# Run the QA pipeline for a research report
+printshop --content research_report
+
+# Generate a magazine
+printshop --content magazine
+```
+
+## Links
+
+- Repository: https://github.com/kormco/deepagents-printshop
+- License: Apache-2.0

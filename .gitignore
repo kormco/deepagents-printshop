@@ -20,11 +20,11 @@ wheels/
 .installed.cfg
 *.egg
 
-# Test and Development Files
-test_*.py
-demo_*.py
-debug_*.py
-*_test.py
+# Test and Development Files (root-level ad-hoc scripts only; tests/ dir is tracked)
+/test_*.py
+/demo_*.py
+/debug_*.py
+/*_test.py
 MILESTONE_*.md
 *SUMMARY.md
 

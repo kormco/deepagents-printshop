@@ -1,6 +1,11 @@
 # DeepAgents PrintShop - Intelligent LaTeX Document Generator
 
-An advanced multi-agent system that generates professional LaTeX documents with comprehensive quality assurance, LLM-based document optimization, and automated visual quality analysis.
+[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
+[![Python](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://python.org)
+[![Built with LangGraph](https://img.shields.io/badge/Built%20with-LangGraph-orange.svg)](https://github.com/langchain-ai/langgraph)
+[![Built with DeepAgents CLI](https://img.shields.io/badge/Built%20with-DeepAgents%20CLI-purple.svg)](https://pypi.org/project/deepagents-cli/)
+
+An advanced multi-agent system that generates professional LaTeX documents with comprehensive quality assurance, LLM-based document optimization, and automated visual quality analysis. Orchestrated by a **LangGraph StateGraph** with quality gates, iterative refinement, and inter-agent communication.
 
 ## Example Output
 
@@ -33,6 +38,37 @@ A full-color magazine layout with multi-column text, pull quotes, and profession
 📄 **Output:** [artifacts/output/magazine.pdf](deepagents-printshop-SAMPLE-magazine.pdf) (~7MB, 10-15 pages)
 
 > **Note:** All generated documents include a disclaimer stating they are fictional examples created for demonstration purposes.
+
+## Gallery
+
+| Research Report | Magazine |
+|:-:|:-:|
+| <img src="deepagents-printshop-SAMPLE-research_report.pdf" width="300"> | <img src="deepagents-printshop-SAMPLE-magazine.pdf" width="300"> |
+| Academic-style report with tables and figures | Full-color magazine with multi-column layout |
+
+### LangGraph Pipeline Architecture
+
+The QA pipeline is orchestrated as a **LangGraph StateGraph** with conditional edges for quality gate decisions:
+
+```mermaid
+graph TD
+    START --> content_review
+    content_review -->|score >= 80| latex_optimization
+    content_review -->|score < 80| iteration
+    content_review -->|max iterations| escalation
+    latex_optimization -->|score >= 85| visual_qa
+    latex_optimization -->|score < 85| iteration
+    latex_optimization -->|max iterations| escalation
+    visual_qa --> quality_assessment
+    quality_assessment -->|score >= 80| completion
+    quality_assessment -->|score < 80| iteration
+    quality_assessment -->|max iterations| escalation
+    iteration --> content_review
+    completion --> END
+    escalation --> END
+```
+
+Inter-agent communication flows through a shared `agent_context` dict — each node can read upstream notes and write downstream context for smarter decision-making.
 
 ## Recommended: Run with Claude Code
 
@@ -233,6 +269,24 @@ Based on analysis of previous documents, the following issues appear frequently:
 💡 Consider checking for these issues proactively.
 ```
 
+## Installation
+
+### PyPI (Python package only)
+
+```bash
+pip install deepagents-printshop
+```
+
+This installs the Python package and CLI entry point (`printshop`). You still need system dependencies (TeX Live, Poppler) for PDF compilation — see [SYSTEM_DEPS.md](SYSTEM_DEPS.md).
+
+### From Source
+
+```bash
+git clone https://github.com/kormco/deepagents-printshop
+cd deepagents-printshop
+pip install -e ".[dev]"
+```
+
 ## Quick Start
 
 ### Option 1: Docker (Recommended)
@@ -365,6 +419,7 @@ deepagents-printshop/
 │   │   └── latex_optimizer.py    # Typography optimization
 │   ├── qa_orchestrator/          # Multi-agent workflow coordination
 │   │   ├── agent.py              # Main orchestrator entry point
+│   │   ├── langgraph_workflow.py # LangGraph StateGraph pipeline
 │   │   ├── quality_gates.py      # Pass/iterate/escalate logic
 │   │   └── workflow_coordinator.py
 │   ├── research_agent/           # Author Agent: LaTeX document generation
@@ -698,3 +753,7 @@ This project uses a dual license structure. See [LICENSE](LICENSE) for full deta
 **Sample Content**: The example magazine content in `artifacts/sample_content/` is licensed under CC BY-SA 4.0.
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND. See LICENSE for full disclaimer.
+
+## GitHub Topics
+
+Recommended repository topics: `latex`, `document-generation`, `multi-agent`, `langgraph`, `pdf`, `ai-agent`, `quality-assurance`, `deep-agents`

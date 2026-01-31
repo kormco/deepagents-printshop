@@ -5,6 +5,7 @@ tavily-python
 langchain
 langchain-anthropic
 langchain-openai
+langgraph
 pandas
 pillow
 matplotlib

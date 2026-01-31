@@ -18,6 +18,10 @@ sys.path.insert(0, str(project_root))
 
 from agents.qa_orchestrator.quality_gates import QualityGateManager, QualityThresholds
 from agents.qa_orchestrator.workflow_coordinator import WorkflowCoordinator, WorkflowExecution
+from agents.qa_orchestrator.langgraph_workflow import (
+    compile_qa_pipeline,
+    state_to_workflow_execution,
+)
 from tools.version_manager import VersionManager
 
 
@@ -209,7 +213,7 @@ class QAOrchestratorAgent:
                                workflow_id: Optional[str] = None,
                                quality_thresholds: Optional[QualityThresholds] = None) -> Dict:
         """
-        Orchestrate complete QA pipeline from start to finish.
+        Orchestrate complete QA pipeline from start to finish using LangGraph.
 
         Args:
             starting_version: Version to start the pipeline from
@@ -224,18 +228,45 @@ class QAOrchestratorAgent:
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             workflow_id = f"qa_pipeline_{timestamp}"
 
-        print(f"🎯 QA ORCHESTRATOR: Starting Pipeline {workflow_id}")
+        print(f"🎯 QA ORCHESTRATOR: Starting Pipeline {workflow_id} (LangGraph)")
         print("=" * 70)
 
         # Update quality thresholds if provided
         if quality_thresholds:
             self.quality_gate_manager.thresholds = quality_thresholds
 
-        # Execute complete workflow
-        workflow_execution = self.workflow_coordinator.run_complete_workflow(
-            workflow_id=workflow_id,
-            starting_version=starting_version
+        # Build and run LangGraph pipeline
+        app = compile_qa_pipeline()
+
+        initial_state = {
+            "workflow_id": workflow_id,
+            "content_source": self.content_source,
+            "starting_version": starting_version,
+            "current_version": starting_version,
+            "current_stage": "initialization",
+            "iterations_completed": 0,
+            "success": False,
+            "human_handoff": False,
+            "escalated": False,
+            "start_time": datetime.now().isoformat(),
+            "end_time": None,
+            "total_processing_time": None,
+            "agent_results": [],
+            "quality_assessments": [],
+            "quality_evaluations": [],
+            "agent_context": {},
+        }
+
+        final_state = app.invoke(
+            initial_state,
+            config={
+                "configurable": {"thread_id": workflow_id},
+                "recursion_limit": 30,
+            },
         )
+
+        # Convert LangGraph state back to WorkflowExecution for reporting
+        workflow_execution = state_to_workflow_execution(final_state)
 
         # Generate comprehensive results
         results = self.compile_pipeline_results(workflow_execution)
