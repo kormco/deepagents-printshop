@@ -17,6 +17,7 @@ from tools.latex_generator import (
     LaTeXGenerator, DocumentConfig, markdown_to_latex
 )
 from tools.pdf_compiler import PDFCompiler
+from tools.content_type_loader import ContentTypeLoader
 
 
 class ResearchReportGenerator:
@@ -45,36 +46,67 @@ class ResearchReportGenerator:
         return ""
 
     def load_config_from_markdown(self) -> Dict:
-        """Load document configuration from config.md file."""
+        """Load document configuration from config.md file.
+
+        Uses ContentTypeLoader to resolve the content type and extract
+        document class, font size, and paper size from the type definition.
+        Parses remaining config sections (metadata, manifest, options) from config.md.
+        """
         config_md = self.load_markdown_content("config.md")
         config = {}
 
-        if config_md:
-            lines = config_md.split('\n')
-            current_section = None
-            content_lines = []
+        if not config_md:
+            return config
 
-            for line in lines:
-                if line.startswith('## '):
-                    # Save previous section
-                    if current_section and content_lines:
-                        config[current_section] = self._parse_config_section(current_section, content_lines)
-                    # Start new section
-                    current_section = line.replace('## ', '').strip().lower()
-                    content_lines = []
-                elif line.strip() and not line.startswith('#'):
-                    content_lines.append(line)
+        lines = config_md.split('\n')
+        current_section = None
+        content_lines = []
 
-            # Save last section
-            if current_section and content_lines:
-                config[current_section] = self._parse_config_section(current_section, content_lines)
+        for line in lines:
+            if line.startswith('## '):
+                if current_section and content_lines:
+                    config[current_section] = self._parse_config_section_simple(current_section, content_lines)
+                current_section = line.replace('## ', '').strip().lower()
+                content_lines = []
+            elif line.strip() and not line.startswith('#'):
+                content_lines.append(line)
+
+        if current_section and content_lines:
+            config[current_section] = self._parse_config_section_simple(current_section, content_lines)
+
+        # Load content type definition
+        type_id = config.get('content type', 'research_report')
+        if isinstance(type_id, str):
+            type_id = type_id.strip()
+
+        loader = ContentTypeLoader()
+        content_type = loader.load_type(type_id)
+
+        # Inject type defaults into config
+        config['document class'] = content_type.document_class
+        config['_content_type'] = content_type
+        config['_type_font_size'] = content_type.default_font_size
+        config['_type_paper_size'] = content_type.default_paper_size
+
+        # Parse project metadata into top-level fields
+        project_meta = config.get('project metadata', '')
+        if isinstance(project_meta, str):
+            for line in project_meta.split('\n'):
+                line = line.strip()
+                if line.startswith('- ') and ':' in line:
+                    key, value = line[2:].split(':', 1)
+                    key = key.strip().strip('*').lower()
+                    value = value.strip()
+                    if key == 'title':
+                        config['title'] = value
+                    elif key == 'authors':
+                        config['authors'] = [a.strip() for a in value.split(',')]
 
         return config
 
-    def _parse_config_section(self, section_name: str, content_lines: list) -> any:
-        """Parse different types of configuration sections."""
-        if section_name in ['document options', 'headers and footers', 'section configuration']:
-            # Parse key-value pairs
+    def _parse_config_section_simple(self, section_name: str, content_lines: list):
+        """Parse configuration sections from config.md."""
+        if section_name in ['document options', 'headers and footers']:
             result = {}
             for line in content_lines:
                 if line.startswith('- ') and ':' in line:
@@ -82,17 +114,14 @@ class ResearchReportGenerator:
                     if len(key_value) == 2:
                         key = key_value[0].strip()
                         value = key_value[1].strip()
-                        # Convert boolean strings
                         if value.lower() in ['true', 'false']:
                             value = value.lower() == 'true'
                         result[key] = value
             return result
-        elif section_name == 'document structure':
-            # Parse ordered list of sections
+        elif section_name == 'content manifest':
             structure = []
             for line in content_lines:
-                if line.strip() and (line.startswith(('1.', '2.', '3.', '4.', '5.', '6.', '7.', '8.')) or line[0].isdigit()):
-                    # Remove number prefix and parse
+                if line.strip() and line[0].isdigit():
                     parts = line.split('.', 1)
                     if len(parts) == 2:
                         section_def = parts[1].strip()
@@ -110,21 +139,8 @@ class ResearchReportGenerator:
                                 'type': 'auto'
                             })
             return structure
-        elif section_name in ['authors', 'packages', 'keywords']:
-            # Parse list items
-            result = []
-            for line in content_lines:
-                if line.startswith('- '):
-                    result.append(line[2:].strip())
-                elif line.strip():
-                    result.append(line.strip())
-            return result
         else:
-            # Return as string for simple values
             content = '\n'.join(content_lines).strip()
-            # Remove list markers if present
-            if all(line.startswith('- ') or not line.strip() for line in content_lines if line.strip()):
-                return '\n'.join(line[2:] if line.startswith('- ') else line for line in content_lines).strip()
             return content
 
     def _process_markdown_with_csv(self, markdown_content: str) -> str:
@@ -257,15 +273,17 @@ For wrapped figures with text flow, use the wrapfig environment.
         # Load configuration from markdown
         config_data = self.load_config_from_markdown()
 
-        # Get document options
+        # Get document options and type defaults
         doc_options = config_data.get('document options', {})
         headers_footers = config_data.get('headers and footers', {})
+        type_font_size = config_data.get('_type_font_size', '12pt')
+        type_paper_size = config_data.get('_type_paper_size', 'letterpaper')
 
-        # Configure the document
+        # Configure the document (type defaults, overridden by config options)
         config = DocumentConfig(
             doc_class=config_data.get('document class', 'article'),
-            font_size=doc_options.get('font_size', '12pt'),
-            paper_size=doc_options.get('paper_size', 'letterpaper'),
+            font_size=doc_options.get('font_size', type_font_size),
+            paper_size=doc_options.get('paper_size', type_paper_size),
             title=config_data.get('title', 'Research Report'),
             author=config_data.get('authors', ['Anonymous'])[0] if isinstance(config_data.get('authors'), list) else config_data.get('authors', 'Anonymous'),
             date=r"\today",
@@ -281,7 +299,7 @@ For wrapped figures with text flow, use the wrapfig environment.
         gen = LaTeXGenerator(config)
 
         # Get document structure from config
-        document_structure = config_data.get('document structure', [])
+        document_structure = config_data.get('content manifest', [])
 
         if document_structure:
             # Use configurable document structure

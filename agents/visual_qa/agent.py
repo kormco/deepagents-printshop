@@ -32,8 +32,9 @@ class ImprovementAction:
 class VisualQAFeedbackAgent:
     """Agent that processes Visual QA results and applies dynamic improvements."""
 
-    def __init__(self):
-        self.visual_qa = VisualQAAgent()
+    def __init__(self, content_source: str = ""):
+        self.content_source = content_source
+        self.visual_qa = VisualQAAgent(content_source=content_source)
         self.pdf_compiler = PDFCompiler()
         self.llm_latex_generator = LLMLaTeXGenerator()
         self.improvement_patterns = self._load_improvement_patterns()

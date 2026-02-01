@@ -1,0 +1,4 @@
+Cluster,Device,Pruning Ratio,Accuracy (%),Latency (ms)
+A,Jetson Orin Nano,0.15,97.1 +/- 0.3,26.4 +/- 1.2
+B,Jetson Xavier NX,0.38,96.5 +/- 0.4,35.8 +/- 1.8
+C,RPi 5 + Hailo-8L,0.62,94.8 +/- 0.6,39.1 +/- 2.4

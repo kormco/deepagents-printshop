@@ -52,6 +52,7 @@ class LaTeXGenerator:
             "% Packages",
             "\\usepackage[utf8]{inputenc}",
             "\\usepackage[T1]{fontenc}",
+            "\\usepackage{lmodern}",
             "\\usepackage{graphicx}",
             "\\usepackage{hyperref}",
             "\\usepackage{cite}",

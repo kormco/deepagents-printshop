@@ -207,7 +207,22 @@ class VersionedContentEditorAgent:
         improved_content = {}
         improvement_results = {}
 
+        # config.md is structured data (type IDs, manifest, options) — not prose.
+        # Editing it corrupts field names and values the downstream pipeline depends on.
+        skip_files = {"config.md"}
+
         for filename, content in parent_content.items():
+            if filename in skip_files:
+                print(f"  📄 Skipping {filename} (structured config)")
+                improved_content[filename] = content
+                improvement_results[filename] = {
+                    "original_quality_score": parent_quality_scores[filename],
+                    "improved_quality_score": parent_quality_scores[filename],
+                    "quality_improvement": 0,
+                    "changes_summary": "Skipped — structured configuration file",
+                }
+                continue
+
             print(f"  📄 Processing {filename}...")
 
             try:
