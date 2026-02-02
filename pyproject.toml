@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "deepagents-printshop"
-version = "0.1.0"
+version = "0.1.1"
 description = "Multi-agent LaTeX document generation with LangGraph QA pipeline"
 readme = "README.md"
 license = "Apache-2.0"
@@ -54,6 +54,15 @@ Repository = "https://github.com/kormco/deepagents-printshop"
 
 [tool.hatch.build.targets.wheel]
 packages = ["agents", "tools"]
+
+[tool.hatch.build.targets.sdist]
+exclude = [
+    "*.pdf",
+    "artifacts/output/",
+    "artifacts/reviewed_content/",
+    "artifacts/agent_reports/",
+    "dist/",
+]
 
 [tool.ruff]
 target-version = "py310"
