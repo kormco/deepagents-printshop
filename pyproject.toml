@@ -1,0 +1,76 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "deepagents-printshop"
+version = "0.1.1"
+description = "Multi-agent LaTeX document generation with LangGraph QA pipeline"
+readme = "README.md"
+license = "Apache-2.0"
+requires-python = ">=3.10"
+authors = [
+    { name = "DeepAgents PrintShop Contributors" },
+]
+keywords = ["latex", "document-generation", "ai", "multi-agent", "pdf", "langgraph"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Text Processing :: Markup :: LaTeX",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+dependencies = [
+    "deepagents-cli",
+    "anthropic",
+    "openai",
+    "tavily-python",
+    "langchain",
+    "langchain-anthropic",
+    "langchain-openai",
+    "langgraph",
+    "pandas",
+    "pillow",
+    "matplotlib",
+    "python-dotenv",
+    "pdf2image",
+    "pypdf",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "ruff",
+]
+
+[project.scripts]
+printshop = "agents.qa_orchestrator.agent:main"
+
+[project.urls]
+Homepage = "https://github.com/kormco/deepagents-printshop"
+Repository = "https://github.com/kormco/deepagents-printshop"
+
+[tool.hatch.build.targets.wheel]
+packages = ["agents", "tools"]
+
+[tool.hatch.build.targets.sdist]
+exclude = [
+    "*.pdf",
+    "artifacts/output/",
+    "artifacts/reviewed_content/",
+    "artifacts/agent_reports/",
+    "dist/",
+]
+
+[tool.ruff]
+target-version = "py310"
+line-length = 120
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W"]
+ignore = ["E501"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

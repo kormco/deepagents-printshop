@@ -220,6 +220,19 @@ class QualityGateManager:
 
         score = assessment.latex_score
 
+        # Hard gate: compilation failure always forces iteration
+        for issue in assessment.latex_issues:
+            if issue.startswith("PDF_COMPILATION_FAILED"):
+                return QualityGateEvaluation(
+                    gate_name="latex_quality",
+                    result=QualityGateResult.ITERATE,
+                    score=score,
+                    threshold=self.thresholds.latex_minimum,
+                    reasons=["PDF compilation failed — must iterate"],
+                    recommendations=["Fix LaTeX compilation errors before proceeding"],
+                    next_action="run_latex_specialist",
+                )
+
         # Check overall LaTeX score
         if score < self.thresholds.latex_minimum:
             reasons.append(f"LaTeX score {score} below minimum {self.thresholds.latex_minimum}")

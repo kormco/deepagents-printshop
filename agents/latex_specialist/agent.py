@@ -48,7 +48,7 @@ class LaTeXSpecialistAgent:
 
         # Initialize components
         self.latex_analyzer = LaTeXAnalyzer()
-        self.latex_optimizer = LaTeXOptimizer()
+        self.latex_optimizer = LaTeXOptimizer(content_source=content_source)
         self.version_manager = VersionManager()
         self.change_tracker = ChangeTracker()
 
@@ -295,7 +295,7 @@ Data 4 & Data 5 & Data 6 \\\\
 
         # Create LaTeX file for the version
         latex_content_dict = {
-            "research_report.tex": optimized_latex
+            f"{self.output_filename}.tex": optimized_latex
         }
 
         # Create version metadata

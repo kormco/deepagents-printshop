@@ -145,13 +145,17 @@ class VisualValidator:
 class MultimodalLLMAnalyzer:
     """Use Claude's vision capabilities for detailed visual analysis."""
 
-    def __init__(self, api_key: Optional[str] = None):
+    def __init__(self, api_key: Optional[str] = None, rendering_instructions: str = "", model: str = ""):
         """
         Initialize Claude analyzer.
 
         Args:
             api_key: Anthropic API key (will use environment variable if None)
+            rendering_instructions: Content type rendering instructions to append to prompts
+            model: Vision model to use (defaults to VISUAL_QA_MODEL env var or claude-sonnet-4-20250514)
         """
+        self.rendering_instructions = rendering_instructions
+        self.model = model or os.getenv("VISUAL_QA_MODEL", "claude-sonnet-4-20250514")
         if not ANTHROPIC_AVAILABLE:
             self.client = None
             self.api_key = None
@@ -184,6 +188,10 @@ Analyze this title page image for a research document. Evaluate the following as
 - The PDF should show formatted text, not raw LaTeX commands
 - Score must be reduced to 1/10 if LaTeX syntax is detected
 - Add "CRITICAL: Visible LaTeX syntax detected" to issues_found
+
+**Disclaimer/Notice Check:**
+- Is there a disclaimer or notice visible on the title/cover page (e.g., an AI-generation disclaimer or similar notice)?
+- If the rendering instructions require a disclaimer but none is visible, flag it as an issue.
 
 Also identify:
 - Any missing elements that should be present
@@ -258,6 +266,10 @@ Analyze this content page for visual quality. Score these elements (1-10):
 - The PDF should show formatted text, not raw LaTeX commands
 - Score must be reduced to 1/10 if LaTeX syntax is detected
 - Add "CRITICAL: Visible LaTeX syntax detected" to issues_found
+
+**Production Credit / Citation Check (especially on the last pages):**
+- Is there a production credit or citation at the end of the document (e.g., "Typeset by..." or similar)?
+- If the rendering instructions require a PrintShop citation but none is visible, flag it as an issue.
 
 Look for:
 - Inconsistent formatting
@@ -369,10 +381,19 @@ JSON response format:
             # Get appropriate prompt
             prompt = self.validation_prompts.get(page_type, self.validation_prompts['content_page'])
 
+            if self.rendering_instructions:
+                prompt += (
+                    "\n\n## Document Type Rendering Instructions\n"
+                    "The following are the rendering instructions for this document type. "
+                    "Evaluate whether the page conforms to these specifications and flag "
+                    "any deviations as issues:\n\n"
+                    + self.rendering_instructions
+                )
+
             # Analyze with Claude
             response = self.client.messages.create(
-                model="claude-3-haiku-20240307",
-                max_tokens=1500,
+                model=self.model,
+                max_tokens=2500,
                 messages=[
                     {
                         "role": "user",
@@ -500,16 +521,29 @@ JSON response format:
 class VisualQAAgent:
     """Main Visual QA Agent that orchestrates the entire process."""
 
-    def __init__(self, api_key: Optional[str] = None):
+    def __init__(self, api_key: Optional[str] = None, content_source: str = ""):
         """
         Initialize Visual QA Agent.
 
         Args:
             api_key: Anthropic API key (optional, will use environment variable)
+            content_source: Content type identifier (e.g. 'research_report') used
+                to load rendering instructions from content_types/{id}/type.md
         """
         self.pdf_converter = PDFToImageConverter()
         self.validator = VisualValidator()
-        self.llm_analyzer = MultimodalLLMAnalyzer(api_key)
+
+        rendering_instructions = ""
+        if content_source:
+            try:
+                from tools.content_type_loader import ContentTypeLoader
+                loader = ContentTypeLoader()
+                type_def = loader.load_type(content_source)
+                rendering_instructions = type_def.type_md_content
+            except Exception as e:
+                print(f"⚠️ Could not load content type '{content_source}': {e}")
+
+        self.llm_analyzer = MultimodalLLMAnalyzer(api_key, rendering_instructions=rendering_instructions)
 
         # Create output directory for images
         self.output_dir = Path("artifacts/reviewed_content/v3_visual_qa")

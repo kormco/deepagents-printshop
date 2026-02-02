@@ -20,6 +20,7 @@ from tools.llm_latex_generator import (
 from tools.pattern_injector import PatternInjector
 from tools.pdf_compiler import PDFCompiler
 from tools.magazine_layout import MagazineLayoutGenerator, get_magazine_preamble
+from tools.content_type_loader import ContentTypeLoader
 
 
 class LLMResearchReportGenerator:
@@ -65,7 +66,11 @@ class LLMResearchReportGenerator:
         self.pdf_compiler = PDFCompiler()
 
     def _load_config(self) -> Dict:
-        """Load document configuration from config.md."""
+        """Load document configuration from config.md.
+
+        Uses ContentTypeLoader to resolve the content type definition.
+        Parses remaining config sections (metadata, manifest, options) from config.md.
+        """
         config = {
             "title": "Research Report",
             "subtitle": "",
@@ -88,6 +93,9 @@ class LLMResearchReportGenerator:
         current_section = None
         disclaimer_lines = []
         in_disclaimer = False
+        rendering_notes_lines = []
+        in_rendering_notes = False
+        content_type_id = None
 
         for line in content.split('\n'):
             line_stripped = line.strip()
@@ -96,11 +104,22 @@ class LLMResearchReportGenerator:
             if line_stripped.startswith('## '):
                 current_section = line_stripped[3:].strip().lower()
                 in_disclaimer = (current_section == 'disclaimer')
+                in_rendering_notes = (current_section == 'rendering notes')
+                continue
+
+            # Capture content type
+            if current_section == 'content type' and line_stripped and not line_stripped.startswith('---'):
+                content_type_id = line_stripped
                 continue
 
             # Capture disclaimer content (multi-line)
             if in_disclaimer and line_stripped and not line_stripped.startswith('---'):
                 disclaimer_lines.append(line_stripped)
+                continue
+
+            # Capture rendering notes (multi-line)
+            if in_rendering_notes and line_stripped:
+                rendering_notes_lines.append(line_stripped)
                 continue
 
             line = line_stripped  # Use stripped version for rest of parsing
@@ -132,17 +151,14 @@ class LLMResearchReportGenerator:
                         config['options'][key] = value
                     elif current_section == 'headers and footers':
                         config['style'][key] = value
-                    elif current_section == 'style guide':
-                        config['style'][key] = value
 
-            # Parse numbered section list
-            if current_section == 'sections' and line and line[0].isdigit():
+            # Parse numbered section list (supports both "Sections" and "Content Manifest")
+            if current_section in ('sections', 'content manifest') and line and line[0].isdigit():
                 # e.g., "1. Editor's Letter (introduction.md)"
                 if '(' in line and ')' in line:
                     start = line.index('(') + 1
                     end = line.index(')')
                     filename = line[start:end]
-                    # Extract title (between number and parenthesis)
                     title_part = line.split('.', 1)[1] if '.' in line else line
                     title = title_part.split('(')[0].strip()
                     config['sections'].append({'file': filename, 'title': title})
@@ -150,6 +166,16 @@ class LLMResearchReportGenerator:
         # Store disclaimer if found
         if disclaimer_lines:
             config['disclaimer'] = ' '.join(disclaimer_lines)
+
+        # Store rendering notes
+        if rendering_notes_lines:
+            config['rendering_notes'] = '\n'.join(rendering_notes_lines)
+
+        # Load content type definition
+        type_id = content_type_id or self.content_source
+        loader = ContentTypeLoader()
+        content_type = loader.load_type(type_id)
+        config['_content_type'] = content_type
 
         return config
 
@@ -613,10 +639,11 @@ class LLMResearchReportGenerator:
         else:
             # For other document types, inject figures at appropriate locations
             for fig in figures:
+                fig_width = fig.get('width', '0.8\\\\textwidth')
                 figure_code = f"""
 \\begin{{figure}}[H]
 \\centering
-\\includegraphics[width={fig.get('width', '0.8\\\\textwidth')}]{{{fig['path']}}}
+\\includegraphics[width={fig_width}]{{{fig['path']}}}
 \\caption{{{fig.get('caption', 'Figure')}}}
 \\end{{figure}}
 """
@@ -672,77 +699,73 @@ class LLMResearchReportGenerator:
         return guidance
 
     def _get_magazine_requirements(self) -> List[str]:
-        """Get magazine-specific LaTeX requirements using the MagazineLayoutGenerator."""
-        # Initialize the magazine layout generator
-        layout_gen = MagazineLayoutGenerator()
+        """Get magazine-specific LaTeX requirements.
 
-        # Get the full preamble as a requirement
+        Uses the content type definition for rendering instructions and the
+        MagazineLayoutGenerator for the concrete preamble code.
+        """
+        requirements = []
+
+        # Get preamble from MagazineLayoutGenerator (concrete LaTeX code)
+        layout_gen = MagazineLayoutGenerator()
         preamble = layout_gen.get_full_preamble()
         preamble_requirement = f"""MAGAZINE PREAMBLE - INCLUDE THIS EXACT CODE IN YOUR DOCUMENT PREAMBLE:
 ```latex
 {preamble}
 ```
 You MUST include all these package imports and macro definitions in your document preamble."""
+        requirements.append(preamble_requirement)
 
-        # Get the layout requirements from the generator
-        layout_requirements = layout_gen.get_magazine_requirements()
+        # Get layout requirements from the generator
+        requirements.extend(layout_gen.get_magazine_requirements())
 
-        # Add additional formatting requirements
-        additional_requirements = [
-            """MAGAZINE LAYOUT REQUIREMENTS:
-- Use TWO-COLUMN layout for article content with \\begin{{multicols}}{{2}}
-- Keep the Table of Contents in single-column format
-- IMPORTANT PARAGRAPH FORMATTING:
-  - Use standard LaTeX paragraph spacing - do NOT add manual \\vspace between paragraphs
-  - Let LaTeX handle paragraph indentation naturally
-  - Do NOT use \\\\  or \\newline to force line breaks within paragraphs
-- For TABLES: End multicols BEFORE the table, then restart multicols AFTER
-- For FULL-WIDTH FIGURES: Same pattern - exit multicols, place figure*, re-enter multicols""",
+        # Inject the content type definition as rendering context
+        content_type = self.config.get('_content_type')
+        if content_type and content_type.type_md_content:
+            requirements.append(
+                "CONTENT TYPE RENDERING INSTRUCTIONS:\n" + content_type.type_md_content
+            )
 
-            """MAGAZINE TYPOGRAPHY:
-- Use DROP CAPS for the first letter of each article using lettrine:
-  \\lettrine[lines=2, loversize=0.1, lraise=0.1, nindent=0.5em]{{F}}{{irst}} word
-- REDUCE LIST SPACING with enumitem:
-  \\setlist{{nosep, topsep=0pt, partopsep=0pt, itemsep=2pt}}
-- Use the \\pullquote{{}} and \\pullquoteattr{{}}{{}} macros for emphasis""",
+        # Inject rendering notes from config.md (content-specific instructions)
+        rendering_notes = self.config.get('rendering_notes', '')
+        if rendering_notes:
+            requirements.append(
+                "ADDITIONAL RENDERING NOTES FROM CONTENT CONFIG:\n" + rendering_notes
+            )
 
-            """MAGAZINE STYLING:
-- Headers should show "Deep Agents Magazine" on left, page number on right
-- NO page numbers on cover page or table of contents
-- Add horizontal rules between major sections
-- Use the article header macros: \\articleheader{{SECTION}}{{Title}}{{Byline}}""",
-
-            """FIGURE AND CHART PLACEMENT:
-- PREFER simple figure environments over wrapfigure
-- For images within multicols: width=\\columnwidth
-- Full-width images: Exit multicols, use figure* environment, re-enter multicols
-- Use the infographic macros for statistics: \\circlestat, \\bigstat, \\statrow
-- The cover-image.jpg should ONLY be used on the cover page background
-- Include the fake-barcode.png on the back cover/last page in the bottom corner""",
-
-            """CRITICAL TEXT CONTRAST AND SPACING RULES:
-- NEVER use black text on dark backgrounds (use white or light colors instead)
-- NEVER use white text on light backgrounds (use black or dark colors instead)
-- On darkpage environments: ALL text must be white or light colored
-- On regular pages: ALL text must be black or dark colored
-- AVOID large empty whitespaces - fill space with content or reduce spacing
-- Keep content dense and visually balanced throughout
-- Do NOT leave half-empty pages or large gaps between sections
-- Use \\vfill sparingly - prefer natural content flow"""
-        ]
-
-        # Combine all requirements
-        return [preamble_requirement] + layout_requirements + additional_requirements
+        return requirements
 
     def _get_research_report_requirements(self) -> List[str]:
-        """Get research report-specific LaTeX requirements."""
-        return [
-            "Use standard academic article format",
-            "Include abstract if content has one",
-            "Use numbered sections and subsections",
-            "Format references properly if bibliography exists",
-            "Use single-column layout throughout"
-        ]
+        """Get research report-specific LaTeX requirements.
+
+        Uses the content type definition for rendering instructions.
+        """
+        requirements = []
+
+        # Inject the content type definition as rendering context
+        content_type = self.config.get('_content_type')
+        if content_type and content_type.type_md_content:
+            requirements.append(
+                "CONTENT TYPE RENDERING INSTRUCTIONS:\n" + content_type.type_md_content
+            )
+        else:
+            # Fallback if type definition not available
+            requirements.extend([
+                "Use standard academic article format",
+                "Include abstract if content has one",
+                "Use numbered sections and subsections",
+                "Format references properly if bibliography exists",
+                "Use single-column layout throughout"
+            ])
+
+        # Inject rendering notes from config.md
+        rendering_notes = self.config.get('rendering_notes', '')
+        if rendering_notes:
+            requirements.append(
+                "ADDITIONAL RENDERING NOTES FROM CONTENT CONFIG:\n" + rendering_notes
+            )
+
+        return requirements
 
     def generate_with_patterns(self) -> LaTeXGenerationResult:
         """

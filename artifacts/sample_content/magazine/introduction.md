@@ -1,8 +1,15 @@
 # Editor's Letter
 
-> **DISCLAIMER**: This is a fictional example magazine created for demonstration purposes. All quotes, individuals, and specific statistics are fabricated. Real technologies and companies are referenced for illustrative context only.
 
 ## Welcome to Deep Agents
+
+<!-- IMAGE: images/image6.jpg
+caption: Where the future of AI is being built, one line of code at a time.
+label: fig:tech-office
+width: 0.4\textwidth
+description: Modern open-plan tech office in a converted industrial space - exposed brick walls, timber beam ceiling, large windows with natural light. Rows of workstations with people working.
+placement: Wrap left, 40% width. Grounds the abstract AI concepts in real-world workspace context.
+-->
 
 Dear Reader,
 
