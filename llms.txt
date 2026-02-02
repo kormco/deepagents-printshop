@@ -14,7 +14,8 @@ DeepAgents PrintShop is an open-source Python system that generates professional
 - Visual QA using Claude Vision for PDF layout analysis
 - Pattern learning system that improves quality over successive runs
 - Version tracking with complete change history
-- Supports multiple document types: research reports, magazines, custom
+- Content type system: document rendering controlled by natural language instructions in `content_types/*/type.md`
+- Supports multiple document types: research reports, magazines, IEEE conference papers, custom
 
 ## Tech Stack
 
@@ -50,5 +51,6 @@ printshop --content magazine
 
 ## Links
 
+- PyPI: https://pypi.org/project/deepagents-printshop/
 - Repository: https://github.com/kormco/deepagents-printshop
 - License: Apache-2.0
