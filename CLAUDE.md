@@ -184,6 +184,15 @@ DeepAgents persistent memory stored in `.deepagents/`:
 - **Unicode in LaTeX**: pdflatex cannot handle Unicode math symbols (superscripts, subscripts like `⁻`, `²`). The `_sanitize_unicode_for_latex()` method in latex_optimizer.py handles known cases, but new Unicode characters from LLM output may need to be added to the replacement map.
 - **Duplicate figure labels**: If images appear both via inline `<!-- IMAGE: -->` comments and via a separate image-walking step, you get duplicate `\label{}` errors. All images should be referenced inline from markdown — there is no separate image directory scan.
 
+## GitHub Issues
+
+When creating GitHub issues with `gh issue create`, always apply a label:
+- **bug** — Something is broken
+- **enhancement** — New feature or improvement request
+- **question** — Needs discussion or clarification
+
+Example: `gh issue create --title "..." --body "..." --label "bug"`
+
 ## Dependencies
 
 Python packages (requirements.txt):
