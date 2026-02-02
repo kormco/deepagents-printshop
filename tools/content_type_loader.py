@@ -23,6 +23,45 @@ class ContentTypeDefinition:
     default_font_size: str      # Extracted for DocumentConfig
     default_paper_size: str     # Extracted for DocumentConfig
 
+    @property
+    def rendering_instructions(self) -> str:
+        """Extract the ## Rendering Instructions section text."""
+        if not self.type_md_content:
+            return ""
+        match = re.search(
+            r'## Rendering Instructions\s*\n(.*?)(?=\n## |\Z)',
+            self.type_md_content,
+            re.DOTALL
+        )
+        return match.group(1).strip() if match else ""
+
+    @property
+    def latex_preamble_blocks(self) -> List[str]:
+        """Extract all ```latex code blocks from the ## LaTeX Requirements section."""
+        if not self.type_md_content:
+            return []
+        section_match = re.search(
+            r'## LaTeX Requirements\s*\n(.*?)(?=\n## |\Z)',
+            self.type_md_content,
+            re.DOTALL
+        )
+        if not section_match:
+            return []
+        section_text = section_match.group(1)
+        return re.findall(r'```latex\s*\n(.*?)```', section_text, re.DOTALL)
+
+    @property
+    def structure_rules(self) -> str:
+        """Extract the ## Structure Rules section text."""
+        if not self.type_md_content:
+            return ""
+        match = re.search(
+            r'## Structure Rules\s*\n(.*?)(?=\n## |\Z)',
+            self.type_md_content,
+            re.DOTALL
+        )
+        return match.group(1).strip() if match else ""
+
 
 class ContentTypeLoader:
     """
@@ -35,8 +74,12 @@ class ContentTypeLoader:
     - Structure Rules for compilation constraints
     """
 
-    def __init__(self, types_dir: str = "content_types"):
-        self.types_dir = Path(types_dir)
+    def __init__(self, types_dir: Optional[str] = None):
+        if types_dir is not None:
+            self.types_dir = Path(types_dir)
+        else:
+            # Resolve from this file's location so it works regardless of CWD
+            self.types_dir = Path(__file__).parent.parent / "content_types"
 
     def load_type(self, type_id: str) -> ContentTypeDefinition:
         """

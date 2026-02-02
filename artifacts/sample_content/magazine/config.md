@@ -27,22 +27,16 @@ magazine
 ## Content Manifest
 1. Editor's Letter (introduction.md)
 2. Cover Story: The Year of the Agent (cover_story.md)
-3. Feature: Claude Code Revolution (claude_code.md)
-4. Technical Deep Dive: LangGraph & Multi-Agent Systems (langgraph.md)
-5. Industry Standard: Model Context Protocol (mcp_protocol.md)
-6. Data & Metrics (methodology.md)
-7. What's Next: The Road to 2027 (conclusion.md)
+3. Feature: Claude Code Revolution (research_areas.md)
+4. Industry Adoption: Who's Using Deep Agents (results.md)
+5. Technical Deep Dive: LangGraph & Multi-Agent Systems (methodology.md)
+6. Industry Standard: Model Context Protocol (detailed_results.md)
+7. Data & Metrics (performance_table.md)
+8. What's Next: The Road to 2027 (conclusion.md)
 
 ## Rendering Notes
 - Professional magazine tone
 - Technical accuracy with accessible language
-- Pull quotes for emphasis
-- Sidebars for technical details
-- Data visualizations and tables
-- **Text Contrast**: NEVER use black text on dark backgrounds or white text on light backgrounds
-- **Dark Pages**: The conclusion section ("The Road to 2027") should use darkpage environment with ALL WHITE TEXT
-- **Whitespace**: Avoid large empty spaces - keep content dense and visually balanced
-- **Back Cover**: Final page must include the fake-barcode.png image in bottom corner
 
 ## Images
 - **Image Directory**: images/

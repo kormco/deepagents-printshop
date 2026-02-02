@@ -174,6 +174,11 @@ DeepAgents persistent memory stored in `.deepagents/`:
 - LaTeX scoring (structure, typography, tables/figures, best practices): `agents/latex_specialist/latex_optimizer.py`
 - Iteration limits: `agents/qa_orchestrator/langgraph_workflow.py`
 
+### Pipeline Status Reporting
+- **Completed / Human Handoff Ready**: All quality gates passed. Report as "completed successfully."
+- **Escalated**: Pipeline hit iteration limits or quality gates were not met. Report as "completed with issues" and note what failed (e.g., visual QA score plateaued below threshold). Do NOT call this a successful run.
+- **Failed**: A stage crashed or errored out. Report as "failed" with the error.
+
 ### Known Gotchas
 - **Flesch readability vs. academic tone**: The content editor may lower scores on first pass by making prose more academic. Dense sentences score poorly on Flesch Reading Ease. If content consistently fails the gate, simplify sentence structure in the source markdown rather than lowering thresholds.
 - **Unicode in LaTeX**: pdflatex cannot handle Unicode math symbols (superscripts, subscripts like `⁻`, `²`). The `_sanitize_unicode_for_latex()` method in latex_optimizer.py handles known cases, but new Unicode characters from LLM output may need to be added to the replacement map.

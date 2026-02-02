@@ -1,5 +1,10 @@
 """Magazine Layout Tools - Professional magazine LaTeX macros and templates.
 
+DEPRECATED: All LaTeX macro definitions have been moved into
+content_types/magazine/type.md as ```latex code blocks. The pipeline now reads
+macros directly from type.md via ContentTypeDefinition.latex_preamble_blocks.
+This file is kept for reference only and is no longer imported by active code.
+
 Provides LaTeX macro definitions for creating professional magazine layouts including:
 - Cover page mastheads with positioned callouts
 - Creative contents pages with large numbers

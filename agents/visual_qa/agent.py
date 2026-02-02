@@ -153,16 +153,18 @@ class VisualQAFeedbackAgent:
                 version_dir.mkdir(parents=True, exist_ok=True)
 
                 # Save improved .tex file to version directory
-                version_tex_path = version_dir / "research_report.tex"
+                tex_filename = f"{self.content_source}.tex" if self.content_source else "research_report.tex"
+                pdf_filename = f"{self.content_source}.pdf" if self.content_source else "research_report.pdf"
+                version_tex_path = version_dir / tex_filename
                 with open(version_tex_path, 'w', encoding='utf-8') as f:
                     f.write(new_latex_content)
 
                 # Copy PDF to version directory
-                version_pdf_path = version_dir / "research_report.pdf"
+                version_pdf_path = version_dir / pdf_filename
                 shutil.copy(new_pdf_path, version_pdf_path)
 
                 # Track version in version manager
-                content_dict = {"research_report.tex": new_latex_content}
+                content_dict = {tex_filename: new_latex_content}
                 self.version_manager.create_version(
                     content_dict=content_dict,
                     version_name=version_name,
@@ -176,8 +178,8 @@ class VisualQAFeedbackAgent:
                 )
 
                 # Track changes in version history
-                old_content_dict = {"research_report.tex": old_latex_content}
-                new_content_dict = {"research_report.tex": new_latex_content}
+                old_content_dict = {tex_filename: old_latex_content}
+                new_content_dict = {tex_filename: new_latex_content}
                 self.change_tracker.create_change_report(
                     old_version=parent_version,
                     new_version=version_name,

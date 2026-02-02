@@ -10,6 +10,14 @@ Claude Code began as a modest experiment---a command line tool released in Febru
 
 The tool lives in your terminal, understands your codebase, and helps you code faster by executing routine tasks, explaining complex code, and handling git workflows---all through natural language commands. You can use it in your terminal, IDE, or tag @claude on GitHub.
 
+<!-- IMAGE: images/image7.png
+caption: Ancient wisdom, artificial intelligence: the synthesis continues.
+label: fig:vaporwave
+width: 0.3\textwidth
+description: Vaporwave/synthwave style illustration of a classical Greek or Roman bust in vivid neon colors - cyan, magenta, orange, pink gradients against black background. Artistic blend of classical and futuristic aesthetics.
+placement: Wrap left, 30% width. Bold colors make it a strong visual accent for the Claude Code article.
+-->
+
 ## The Numbers Don't Lie
 
 In January 2026, reports emerged that over **90% of the code** for new Claude models and features is now authored autonomously by AI agents. The internal development cycle at Anthropic has shifted from human-centric programming to a model where AI acts as the primary developer while humans transition into roles of high-level architects and security auditors.

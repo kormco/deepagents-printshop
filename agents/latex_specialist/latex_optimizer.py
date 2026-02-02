@@ -103,21 +103,34 @@ class LaTeXOptimizer:
         print(f"🔧 Starting LaTeX optimization (level: {optimization_level})")
 
         # If we have markdown content, convert to LaTeX first
+        has_type_preamble = False
         if markdown_content:
             latex_content = self._convert_markdown_to_latex(markdown_content)
+            # Check if the content type provided its own preamble blocks
+            config_data = self.load_config_from_markdown(markdown_content)
+            content_type = config_data.get('_content_type')
+            if content_type and content_type.latex_preamble_blocks:
+                has_type_preamble = True
         else:
             latex_content = content
 
         # Apply optimizations in order
         optimizations_applied = []
 
-        # 1. Structure optimization
-        latex_content, struct_opts = self._optimize_structure(latex_content)
-        optimizations_applied.extend(struct_opts)
+        # Skip structure and typography optimization when content type provides its own preamble
+        # (these add duplicate packages and rewrite the preamble)
+        if not has_type_preamble:
+            # 1. Structure optimization
+            latex_content, struct_opts = self._optimize_structure(latex_content)
+            optimizations_applied.extend(struct_opts)
 
-        # 2. Typography optimization
-        latex_content, typo_opts = self._optimize_typography(latex_content, optimization_level)
-        optimizations_applied.extend(typo_opts)
+            # 2. Typography optimization
+            latex_content, typo_opts = self._optimize_typography(latex_content, optimization_level)
+            optimizations_applied.extend(typo_opts)
+
+            # 5. References and citations
+            latex_content, ref_opts = self._optimize_references(latex_content)
+            optimizations_applied.extend(ref_opts)
 
         # 3. Table optimization
         latex_content, table_opts = self._optimize_tables(latex_content)
@@ -126,10 +139,6 @@ class LaTeXOptimizer:
         # 4. Figure optimization
         latex_content, figure_opts = self._optimize_figures(latex_content)
         optimizations_applied.extend(figure_opts)
-
-        # 5. References and citations
-        latex_content, ref_opts = self._optimize_references(latex_content)
-        optimizations_applied.extend(ref_opts)
 
         # 6. General cleanup
         latex_content, cleanup_opts = self._apply_general_cleanup(latex_content)
@@ -186,7 +195,7 @@ class LaTeXOptimizer:
         if isinstance(type_id, str):
             type_id = type_id.strip()
 
-        loader = ContentTypeLoader()
+        loader = ContentTypeLoader(types_dir=str(project_root / "content_types"))
         content_type = loader.load_type(type_id)
 
         # Inject type defaults into config
@@ -234,7 +243,17 @@ class LaTeXOptimizer:
                     parts = line.split('.', 1)
                     if len(parts) == 2:
                         section_def = parts[1].strip()
-                        if ':' in section_def:
+                        # Try "Title (filename.md)" format first
+                        paren_match = re.match(r'^(.+?)\s*\((\S+\.md)\)\s*$', section_def)
+                        if paren_match:
+                            title = paren_match.group(1).strip()
+                            source = paren_match.group(2).strip()
+                            structure.append({
+                                'title': title,
+                                'source': source,
+                                'type': 'markdown'
+                            })
+                        elif ':' in section_def:
                             title, source = section_def.split(':', 1)
                             structure.append({
                                 'title': title.strip(),
@@ -319,50 +338,18 @@ class LaTeXOptimizer:
         )
 
     def _convert_markdown_to_latex(self, markdown_content: Dict[str, str]) -> str:
-        """Convert markdown content to professional LaTeX document using LaTeXGenerator.
+        """Convert markdown content to a complete LaTeX document.
 
-        Reads config.md from the markdown_content dict to determine title, authors,
-        document structure, and formatting options. Produces a complete LaTeX document
-        with proper section ordering, images, TikZ diagrams, CSV tables, and bibliography.
+        Uses a single holistic LLM call with the full type.md rendering instructions,
+        available macros, structure rules, and all section content. The preamble is
+        built programmatically from type.md LaTeX code blocks.
         """
-        # Parse config.md from the loaded content
         config_data = self.load_config_from_markdown(markdown_content)
+        content_type = config_data.get('_content_type')
 
-        # Build DocumentConfig from type defaults + config overrides
-        doc_options = config_data.get('document options', {})
-        headers_footers = config_data.get('headers and footers', {})
-        authors_list = config_data.get('authors', [])
-        author_str = authors_list[0] if isinstance(authors_list, list) and authors_list else 'Research Team'
-        type_font_size = config_data.get('_type_font_size', '12pt')
-        type_paper_size = config_data.get('_type_paper_size', 'letterpaper')
-
-        config = DocumentConfig(
-            doc_class=config_data.get('document class', 'article'),
-            font_size=doc_options.get('font_size', type_font_size),
-            paper_size=doc_options.get('paper_size', type_paper_size),
-            title=config_data.get('title', 'Research Report'),
-            author=author_str,
-            date=r"\today",
-            include_toc=doc_options.get('include_toc', True),
-            include_bibliography=doc_options.get('include_bibliography', True),
-            two_column=doc_options.get('two_column', False),
-            header_left=headers_footers.get('header_left', ''),
-            header_right=headers_footers.get('header_right', r'\today'),
-            footer_center=headers_footers.get('footer_center', r'\thepage'),
-        )
-
-        gen = LaTeXGenerator(config)
-
-        # Insert disclaimer if present in config (converted via shared markdown path)
-        disclaimer_text = config_data.get('disclaimer', '')
-        if disclaimer_text:
-            disclaimer_latex = self._markdown_to_latex_content(disclaimer_text)
-            gen.add_section("Disclaimer", disclaimer_latex.strip(), level=1)
-
-        # Follow document structure ordering from config
+        # Pre-process all markdown sections for inline references
         document_structure = config_data.get('content manifest', [])
-        main_level = 1
-        sub_level = 2
+        processed_sections = []
 
         if document_structure:
             for section in document_structure:
@@ -370,160 +357,203 @@ class LaTeXOptimizer:
                 source = section.get('source')
                 section_type = section.get('type', 'auto')
 
-                if title.lower() == 'abstract':
-                    abstract_content = config_data.get('abstract', 'Abstract content not found.')
-                    gen.add_section("Abstract", abstract_content.strip(), level=main_level)
-
-                elif section_type == 'markdown' and source:
+                if section_type == 'markdown' and source:
                     md_content = markdown_content.get(source, '')
                     if md_content:
-                        # Process CSV, image, and TikZ references within the markdown
                         processed = self._process_csv_table_references(md_content, str(self.content_dir))
                         processed = self._process_image_references(processed, str(self.content_dir))
                         processed = self._process_tikz_references(processed)
-                        # Strip top-level heading so the LLM doesn't duplicate the \section
                         processed = re.sub(r'^#\s+[^\n]*\n*', '', processed, count=1)
-                        # Convert markdown formatting to LaTeX
-                        latex_content = self._markdown_to_latex_content(processed)
-                        # Add manifest-driven \section, then LLM content as subsections
-                        gen.add_section(title, "", level=main_level)
-                        gen.add_raw_latex(f"\n% Content from {source}")
-                        gen.add_raw_latex(latex_content)
+                        processed_sections.append({'title': title, 'content': processed, 'source': source})
                     else:
-                        gen.add_section(title, f"Content not found: {source}", level=main_level)
-
-                elif section_type == 'auto':
-                    gen.add_section(title, "Auto-generated content placeholder", level=main_level)
+                        processed_sections.append({'title': title, 'content': f'[Content not found: {source}]', 'source': source})
+                elif title.lower() == 'abstract':
+                    abstract_content = config_data.get('abstract', '')
+                    if abstract_content:
+                        processed_sections.append({'title': 'Abstract', 'content': abstract_content.strip(), 'source': None})
+                else:
+                    processed_sections.append({'title': title, 'content': '[Auto-generated content placeholder]', 'source': None})
         else:
-            # Fallback: iterate markdown files in dict order (original behavior)
             for filename, content in markdown_content.items():
                 if filename == 'config.md':
                     continue
                 processed = self._process_csv_table_references(content, str(self.content_dir))
                 processed = self._process_image_references(processed, str(self.content_dir))
                 processed = self._process_tikz_references(processed)
-                latex_content = self._markdown_to_latex_content(processed)
-                gen.add_raw_latex(f"\n% Content from {filename}")
-                gen.add_raw_latex(latex_content)
+                title = filename.replace('.md', '').replace('_', ' ').title()
+                processed_sections.append({'title': title, 'content': processed, 'source': filename})
 
-        # Add bibliography
-        self._add_bibliography(gen)
+        # Get type.md properties
+        rendering_instructions = content_type.rendering_instructions if content_type else ""
+        preamble_blocks = content_type.latex_preamble_blocks if content_type else []
+        structure_rules = content_type.structure_rules if content_type else ""
 
-        document = gen.generate_document()
+        # Build preamble
+        preamble = self._build_preamble(config_data, preamble_blocks)
 
-        # Apply rendering instructions (disclaimer + citation) from content type
-        content_type = config_data.get('_content_type')
-        has_disclaimer = bool(config_data.get('disclaimer', ''))
-        if content_type:
-            document = self._apply_rendering_instructions(document, content_type, has_disclaimer)
+        # Assemble content for prompt
+        assembled_content = self._assemble_content_for_prompt(config_data, document_structure, processed_sections)
+
+        # Generate document body via single holistic LLM call
+        body = self._generate_document_body(
+            assembled_content, config_data, rendering_instructions, preamble, structure_rules
+        )
+
+        # Assemble final document
+        document = preamble + "\n\n\\begin{document}\n\n" + body + "\n\n\\end{document}\n"
 
         return document
 
-    def _apply_rendering_instructions(self, document: str, content_type, has_disclaimer: bool) -> str:
-        """Apply rendering instructions from the content type definition.
+    def _build_preamble(self, config_data: Dict, type_preamble_blocks: List[str]) -> str:
+        """Build the LaTeX preamble from type.md code blocks or defaults."""
+        doc_class = config_data.get('document class', 'article')
+        font_size = config_data.get('_type_font_size', '12pt')
+        paper_size = config_data.get('_type_paper_size', 'letterpaper')
+        doc_options = config_data.get('document options', {})
+        font_size = doc_options.get('font_size', font_size)
+        paper_size = doc_options.get('paper_size', paper_size)
 
-        Parses the '## Rendering Instructions' section of type.md for
-        'Cover Page Disclaimer' and 'PrintShop Citation' subsections,
-        then generates and inserts the corresponding LaTeX blocks.
+        documentclass_line = f"\\documentclass[{font_size},{paper_size}]{{{doc_class}}}"
+        preamble_lines = [documentclass_line]
+        print(f"   [LaTeX] Preamble documentclass: {documentclass_line}")
 
-        Args:
-            document: The complete LaTeX document string
-            content_type: ContentTypeDefinition with type_md_content
-            has_disclaimer: Whether config.md already provided a disclaimer
+        content_type_id = config_data.get('content type', config_data.get('_content_type', None))
+        if hasattr(content_type_id, 'type_id'):
+            content_type_id = content_type_id.type_id
 
-        Returns:
-            Modified document string with disclaimer and citation inserted
-        """
-        type_md = content_type.type_md_content
-        if not type_md:
-            return document
+        if type_preamble_blocks:
+            print(f"   [LaTeX] Loaded {len(type_preamble_blocks)} preamble blocks from {content_type_id or 'content type'} type.md")
+            for block in type_preamble_blocks:
+                preamble_lines.append(block.strip())
+        else:
+            if content_type_id and content_type_id != 'research_report':
+                print(f"   [LaTeX] WARNING: Content type '{content_type_id}' has ZERO preamble blocks — falling back to default preamble. "
+                      f"This is likely a bug (type.md not found or missing ```latex blocks).")
+            else:
+                print(f"   [LaTeX] Using default preamble (no content type preamble blocks)")
+            preamble_lines.append(self._default_preamble())
 
-        # Extract the Rendering Instructions section
-        rendering_match = re.search(
-            r'## Rendering Instructions\s*\n(.*?)(?=\n## |\Z)',
-            type_md,
-            re.DOTALL
+        return "\n\n".join(preamble_lines)
+
+    def _default_preamble(self) -> str:
+        """Fallback preamble packages for content types without explicit LaTeX code blocks."""
+        return (
+            "\\usepackage[T1]{fontenc}\n"
+            "\\usepackage[utf8]{inputenc}\n"
+            "\\usepackage{lmodern}\n"
+            "\\usepackage{microtype}\n"
+            "\\usepackage{amsmath}\n"
+            "\\usepackage{graphicx}\n"
+            "\\usepackage{booktabs}\n"
+            "\\usepackage{array}\n"
+            "\\usepackage{longtable}\n"
+            "\\usepackage{float}\n"
+            "\\usepackage{caption}\n"
+            "\\usepackage{geometry}\n"
+            "\\geometry{margin=1in}\n"
+            "\\usepackage{fancyhdr}\n"
+            "\\usepackage{setspace}\n"
+            "\\onehalfspacing\n"
+            "\\usepackage{hyperref}\n"
+            "\\hypersetup{colorlinks=true,linkcolor=blue,citecolor=red,urlcolor=blue}\n"
+            "\\usepackage{tikz}\n"
         )
-        if not rendering_match:
-            return document
 
-        rendering_text = rendering_match.group(1)
+    def _assemble_content_for_prompt(self, config_data: Dict, structure: List, sections: List[Dict]) -> str:
+        """Concatenate all sections with delimiters for the LLM prompt."""
+        parts = []
+        for sec in sections:
+            parts.append(f"=== SECTION: {sec['title']} ===")
+            if sec.get('source'):
+                parts.append(f"(source: {sec['source']})")
+            parts.append(sec['content'])
+            parts.append("")
+        return "\n".join(parts)
 
-        # --- Cover Page Disclaimer ---
-        if not has_disclaimer:
-            disclaimer_match = re.search(
-                r'### Cover Page Disclaimer\s*\n(.*?)(?=\n### |\n## |\Z)',
-                rendering_text,
-                re.DOTALL
+    def _generate_document_body(self, content: str, config: Dict, instructions: str,
+                                preamble: str, rules: str) -> str:
+        """Generate the complete document body via a single holistic LLM call."""
+        if not self.client:
+            raise RuntimeError("ANTHROPIC_API_KEY not set — cannot convert markdown to LaTeX")
+
+        # Build system prompt with rendering context
+        system_parts = [
+            "You are a LaTeX document generation specialist. Generate the BODY of a LaTeX document "
+            "(everything between \\begin{document} and \\end{document}). Output ONLY raw LaTeX — "
+            "no code fences, no \\documentclass, no preamble, no \\begin{document}/\\end{document}."
+        ]
+
+        if instructions:
+            system_parts.append(f"\n\n## RENDERING INSTRUCTIONS\nFollow these instructions precisely:\n\n{instructions}")
+
+        if preamble:
+            system_parts.append(
+                f"\n\n## AVAILABLE PREAMBLE (already included — you may use all macros/environments defined here)\n\n{preamble}"
             )
-            if disclaimer_match and self.client:
-                disclaimer_instruction = disclaimer_match.group(1).strip()
-                try:
-                    response = self.client.messages.create(
-                        model="claude-sonnet-4-20250514",
-                        max_tokens=500,
-                        temperature=0.2,
-                        messages=[{
-                            "role": "user",
-                            "content": (
-                                "Generate ONLY a small LaTeX block (no preamble, no "
-                                "\\documentclass, no \\begin{document}) that implements "
-                                "the following instruction for a cover page disclaimer. "
-                                "Output raw LaTeX only, no code fences.\n\n"
-                                f"Instruction: {disclaimer_instruction}"
-                            ),
-                        }],
-                    )
-                    disclaimer_latex = response.content[0].text.strip()
-                    # Insert after \maketitle
-                    document = document.replace(
-                        '\\maketitle',
-                        '\\maketitle\n\n' + disclaimer_latex,
-                        1
-                    )
-                    print("✅ Inserted cover page disclaimer from rendering instructions")
-                except Exception as e:
-                    print(f"⚠️ Could not generate disclaimer: {e}")
 
-        # --- PrintShop Citation ---
-        citation_match = re.search(
-            r'### PrintShop Citation\s*\n(.*?)(?=\n### |\n## |\Z)',
-            rendering_text,
-            re.DOTALL
-        )
-        if citation_match and self.client:
-            citation_instruction = citation_match.group(1).strip()
-            try:
-                response = self.client.messages.create(
-                    model="claude-sonnet-4-20250514",
-                    max_tokens=500,
-                    temperature=0.2,
-                    messages=[{
-                        "role": "user",
-                        "content": (
-                            "Generate ONLY a small LaTeX block (no preamble, no "
-                            "\\documentclass, no \\begin{document}) that implements "
-                            "the following instruction for a production citation at "
-                            "the end of a document. Output raw LaTeX only, no code fences.\n\n"
-                            f"Instruction: {citation_instruction}"
-                        ),
-                    }],
-                )
-                citation_latex = response.content[0].text.strip()
-                # Insert after bibliography (before \end{document})
-                document = document.replace(
-                    '\\end{document}',
-                    '\n' + citation_latex + '\n\n\\end{document}',
-                    1
-                )
-                print("✅ Inserted PrintShop citation from rendering instructions")
-            except Exception as e:
-                print(f"⚠️ Could not generate PrintShop citation: {e}")
+        if rules:
+            system_parts.append(f"\n\n## STRUCTURE RULES\n\n{rules}")
 
-        return document
+        system_prompt = "\n".join(system_parts)
+
+        # Build user prompt with config metadata and content
+        user_parts = ["Generate the complete LaTeX document body for the following content.\n"]
+
+        # Config metadata
+        title = config.get('title', '')
+        if title:
+            user_parts.append(f"Document Title: {title}")
+        authors = config.get('authors', [])
+        if authors:
+            user_parts.append(f"Authors: {', '.join(authors) if isinstance(authors, list) else authors}")
+
+        # Include all project metadata
+        project_meta = config.get('project metadata', '')
+        if project_meta:
+            user_parts.append(f"\nProject Metadata:\n{project_meta}")
+
+        # Include disclaimer if present
+        disclaimer = config.get('disclaimer', '')
+        if disclaimer:
+            user_parts.append(f"\nDisclaimer text (include on cover page):\n{disclaimer}")
+
+        doc_options = config.get('document options', {})
+        if isinstance(doc_options, dict):
+            if doc_options.get('include_toc', False):
+                user_parts.append("\nInclude a table of contents.")
+            if doc_options.get('include_bibliography', False):
+                user_parts.append("Include a bibliography/references section at the end.")
+
+        user_parts.append(f"\n\n## CONTENT\n\n{content}")
+
+        user_prompt = "\n".join(user_parts)
+
+        try:
+            response = self.client.messages.create(
+                model="claude-sonnet-4-20250514",
+                max_tokens=16000,
+                temperature=0.2,
+                system=system_prompt,
+                messages=[{
+                    "role": "user",
+                    "content": user_prompt,
+                }],
+            )
+            body = response.content[0].text
+            # Strip code fences if the LLM wrapped the output
+            body = re.sub(r'^```(?:latex)?\s*\n', '', body)
+            body = re.sub(r'\n```\s*$', '', body)
+            return self._sanitize_unicode_for_latex(body)
+        except Exception as e:
+            print(f"Error generating document body via LLM: {e}")
+            raise
 
     def _markdown_to_latex_content(self, markdown: str) -> str:
-        """Convert markdown content to LaTeX body content using LLM."""
+        """Convert markdown content to LaTeX body content using LLM.
+
+        Simple per-fragment conversion used by external callers (e.g. report_generator).
+        For full document generation, use _convert_markdown_to_latex instead.
+        """
         if not self.client:
             raise RuntimeError("ANTHROPIC_API_KEY not set — cannot convert markdown to LaTeX")
 
@@ -1110,18 +1140,40 @@ class LaTeXOptimizer:
         return content, optimizations
 
     def _final_formatting_pass(self, content: str) -> str:
-        """Apply final formatting improvements."""
+        """Apply final formatting improvements.
+
+        Only modifies the document body — the preamble (everything before
+        \\begin{document}) is returned unchanged to avoid breaking custom
+        macro definitions (\\newcommand, \\newenvironment, etc.).
+        """
+        # Split at \begin{document} so regexes only touch the body
+        split_marker = "\\begin{document}"
+        marker_pos = content.find(split_marker)
+        if marker_pos == -1:
+            # No \begin{document} — apply to entire content (legacy path)
+            body = content
+            preamble = ""
+            rejoin = False
+        else:
+            preamble = content[:marker_pos + len(split_marker)]
+            body = content[marker_pos + len(split_marker):]
+            rejoin = True
+
         # Ensure proper spacing around environments
-        content = re.sub(r'(\\begin\{[^}]+\})\n{0,1}', r'\1\n', content)
-        content = re.sub(r'\n{0,1}(\\end\{[^}]+\})', r'\n\1', content)
+        # Preserve optional arguments like \begin{tikzpicture}[remember picture, overlay]
+        body = re.sub(r'(\\begin\{[^}]+\}(?:\[[^\]]*\])?)\n{0,1}', r'\1\n', body)
+        body = re.sub(r'\n{0,1}(\\end\{[^}]+\})', r'\n\1', body)
 
         # Ensure proper spacing around sections
-        content = re.sub(r'(\\(?:sub)*section\{[^}]+\})\n{0,1}', r'\1\n\n', content)
+        body = re.sub(r'(\\(?:sub)*section\{[^}]+\})\n{0,1}', r'\1\n\n', body)
+
+        if rejoin:
+            result = preamble + body
+        else:
+            result = body
 
         # Clean up final whitespace
-        content = content.strip()
-
-        return content
+        return result.strip()
 
     def calculate_optimization_score(self, before_issues: int, after_issues: int, optimizations_count: int) -> int:
         """Calculate optimization effectiveness score."""

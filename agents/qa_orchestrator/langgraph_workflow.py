@@ -40,34 +40,100 @@ from agents.qa_orchestrator.workflow_coordinator import WorkflowCoordinator  # n
 def _llm_fix_latex(tex_content: str, error_log: str, attempt: int) -> Optional[str]:
     """Ask Claude to fix LaTeX compilation errors.
 
+    Preserves the original preamble by sending only the document body to the
+    LLM for fixing, then reassembling preamble + fixed body. This prevents
+    the LLM from stripping custom macros, colors, and document class options.
+
     Returns corrected .tex content, or None on failure.
     """
     api_key = os.environ.get("ANTHROPIC_API_KEY")
     if not api_key:
         return None
+
+    # Split into preamble and body at \begin{document}
+    split_marker = "\\begin{document}"
+    marker_pos = tex_content.find(split_marker)
+    if marker_pos == -1:
+        # No \begin{document} — send full content (legacy path)
+        original_preamble = None
+        body_to_fix = tex_content
+    else:
+        original_preamble = tex_content[:marker_pos + len(split_marker)]
+        body_to_fix = tex_content[marker_pos + len(split_marker):]
+
+    # Extract macro/environment names from preamble so the LLM knows what's available
+    available_macros = ""
+    if original_preamble:
+        import re
+        macro_names = re.findall(r'\\(?:newcommand|renewcommand)\{(\\[^}]+)\}', original_preamble)
+        env_names = re.findall(r'\\newenvironment\{([^}]+)\}', original_preamble)
+        color_names = re.findall(r'\\definecolor\{([^}]+)\}', original_preamble)
+        parts = []
+        if macro_names:
+            parts.append(f"Available macros: {', '.join(macro_names)}")
+        if env_names:
+            parts.append(f"Available environments: {', '.join(env_names)}")
+        if color_names:
+            parts.append(f"Available colors: {', '.join(color_names)}")
+        if parts:
+            available_macros = "\n".join(parts) + "\n\n"
+
     try:
         from anthropic import Anthropic
 
         client = Anthropic(api_key=api_key)
+
+        if original_preamble:
+            prompt = (
+                f"The following LaTeX document BODY failed to compile (attempt {attempt}). "
+                "Fix ONLY the body errors and return ONLY the corrected body content "
+                "(everything AFTER \\begin{{document}} and BEFORE \\end{{document}}). "
+                "Do NOT include \\documentclass, preamble, \\begin{{document}}, or \\end{{document}}.\n"
+                "IMPORTANT: Preserve ALL \\includegraphics commands, \\begin{{figure}} environments, "
+                "and disclaimer sections exactly as they appear. Do not remove any images or figures.\n"
+                f"{available_macros}"
+                f"=== ERRORS ===\n{error_log[:3000]}\n\n"
+                f"=== DOCUMENT BODY ===\n{body_to_fix}"
+            )
+        else:
+            prompt = (
+                f"The following LaTeX document failed to compile (attempt {attempt}). "
+                "Fix the errors and return ONLY the corrected .tex content with no explanation.\n"
+                "IMPORTANT: Preserve ALL \\includegraphics commands, \\begin{{figure}} environments, "
+                "and disclaimer sections exactly as they appear. Do not remove any images or figures.\n\n"
+                f"=== ERRORS ===\n{error_log[:3000]}\n\n"
+                f"=== DOCUMENT ===\n{tex_content}"
+            )
+
         response = client.messages.create(
             model="claude-sonnet-4-20250514",
             max_tokens=8000,
             messages=[{
                 "role": "user",
-                "content": (
-                    f"The following LaTeX document failed to compile (attempt {attempt}). "
-                    "Fix the errors and return ONLY the corrected .tex content with no explanation.\n"
-                    "IMPORTANT: Preserve ALL \\includegraphics commands, \\begin{figure} environments, "
-                    "and disclaimer sections exactly as they appear. Do not remove any images or figures.\n\n"
-                    f"=== ERRORS ===\n{error_log[:3000]}\n\n"
-                    f"=== DOCUMENT ===\n{tex_content}"
-                ),
+                "content": prompt,
             }],
         )
         fixed = response.content[0].text.strip()
-        if fixed and "\\begin{document}" in fixed:
-            return fixed
-        return None
+        # Strip code fences if the LLM wrapped the output
+        import re
+        fixed = re.sub(r'^```(?:latex)?\s*\n', '', fixed)
+        fixed = re.sub(r'\n```\s*$', '', fixed)
+
+        if original_preamble:
+            # Reassemble: original preamble + fixed body + \end{document}
+            # Strip any preamble/documentclass the LLM may have included anyway
+            if "\\documentclass" in fixed:
+                doc_start = fixed.find(split_marker)
+                if doc_start != -1:
+                    fixed = fixed[doc_start + len(split_marker):]
+            # Strip \end{document} if present (we'll add it)
+            fixed = re.sub(r'\\end\{document\}\s*$', '', fixed)
+            result = original_preamble + "\n" + fixed + "\n\\end{document}\n"
+            return result
+        else:
+            if fixed and "\\begin{document}" in fixed:
+                return fixed
+            return None
     except Exception as e:
         print(f"   [LangGraph] LLM LaTeX fix attempt {attempt} failed: {e}")
         return None
@@ -134,7 +200,11 @@ def content_review_node(state: PipelineState) -> Dict[str, Any]:
     iteration = state.get("iterations_completed", 0)
     iteration_suffix = f"_iter{iteration + 1}" if iteration > 0 else ""
     target_version = f"v1_content_edited{iteration_suffix}"
-    input_version = state.get("current_version", state.get("starting_version", "v0_original"))
+    # Always use the starting version (v0_original) as input for content editing.
+    # The starting version has all markdown files + config.md. Using
+    # current_version here would feed the LaTeX .tex output back into the
+    # content editor on iteration 2+, losing config.md and the content type.
+    input_version = state.get("starting_version", "v0_original")
 
     start_time = datetime.now()
 
@@ -335,11 +405,23 @@ def latex_optimization_node(state: PipelineState) -> Dict[str, Any]:
                     for llm_attempt in range(1, 3):  # up to 2 LLM fix attempts
                         fixed_tex = _llm_fix_latex(tex_content, msg, llm_attempt)
                         if fixed_tex:
-                            tex_content = fixed_tex
-                            with open(tex_path, "w", encoding="utf-8") as f:
-                                f.write(tex_content)
-                            success, msg = compiler.compile(str(tex_path))
+                            # Write candidate fix to a temp path so we don't destroy the original
+                            candidate_path = tex_path.with_suffix(f".fix{llm_attempt}.tex")
+                            with open(candidate_path, "w", encoding="utf-8") as f:
+                                f.write(fixed_tex)
+                            success, msg = compiler.compile(str(candidate_path))
                             if success:
+                                # Fix compiled — adopt it as the canonical .tex
+                                tex_content = fixed_tex
+                                with open(tex_path, "w", encoding="utf-8") as f:
+                                    f.write(tex_content)
+                                # Move compiled PDF to expected location
+                                candidate_pdf = candidate_path.with_suffix(".pdf")
+                                expected_pdf = tex_path.with_suffix(".pdf")
+                                if candidate_pdf.exists() and candidate_pdf != expected_pdf:
+                                    if expected_pdf.exists():
+                                        expected_pdf.unlink()
+                                    candidate_pdf.rename(expected_pdf)
                                 compilation_success = True
                                 compilation_error = None
                                 print(f"   [LangGraph] PDF compiled after LLM fix attempt {llm_attempt}")
@@ -347,6 +429,9 @@ def latex_optimization_node(state: PipelineState) -> Dict[str, Any]:
                             else:
                                 compilation_error = msg
                                 print(f"   [LangGraph] LLM fix attempt {llm_attempt} did not resolve compilation: {msg}")
+                            # Clean up failed candidate
+                            if candidate_path.exists():
+                                candidate_path.unlink()
                         else:
                             print(f"   [LangGraph] LLM fix attempt {llm_attempt} returned no result")
                             break

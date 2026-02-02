@@ -4,6 +4,14 @@
 
 *From research prototypes to production powerhouses, 2025 marked the decisive moment when AI systems learned to act on their own*
 
+<!-- IMAGE: images/image3.png
+caption: The partnership between human creativity and artificial intelligence defines 2026.
+label: fig:human-ai-collab
+width: \textwidth
+description: A robotic hand and human hand meeting in a fist bump, symbolizing human-AI collaboration. Chrome/metal robot hand with blue LED accents. Background features circular tech patterns.
+placement: Hero image - place full-width after the section heading for maximum visual impact.
+-->
+
 ### The Turning Point
 
 In artificial intelligence, 2025 marked a decisive shift. Systems once confined to research labs and prototypes began to appear as everyday tools. At the center of this transition was the rise of AI agents---systems that can use other software tools and act on their own.

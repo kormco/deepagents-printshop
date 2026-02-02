@@ -2,6 +2,14 @@
 
 *Predictions, challenges, and the questions that will define the next era*
 
+<!-- IMAGE: images/image4.jpg
+caption: A new wave of autonomous AI approaches the horizon.
+label: fig:new-wave
+width: \textwidth
+description: Serene ocean wave curling in misty atmospheric conditions with a soft orange sun glowing through the haze. Calming blue-gray tones with subtle warmth from the sun's reflection on the water.
+placement: Full-width image to create a contemplative pause before final thoughts. Works as a metaphor for waves of change and new horizons.
+-->
+
 ## The Year Ahead
 
 As we look toward the remainder of 2026 and beyond, several trends are poised to reshape the landscape of autonomous AI.

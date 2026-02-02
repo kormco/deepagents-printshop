@@ -8,6 +8,14 @@ When LangChain and LangGraph reached their 1.0 milestones in 2025, it marked mor
 
 LangChain is the fastest way to build an AI agent with a standard tool-calling architecture and provider-agnostic design. LangGraph, its companion framework, takes a lower-level approach: a framework and runtime designed for highly custom, controllable agents that can run for extended periods.
 
+<!-- IMAGE: images/image5.png
+caption: Multi-agent systems: modular by design, powerful in combination.
+label: fig:modular-arch
+width: 0.4\textwidth
+description: Abstract geometric architecture - interlocking cubic modules stacked in an irregular but balanced pattern. Gray concrete tones against dramatic cloudy sky. Evokes modular systems and building blocks.
+placement: Wrap right, 40% width, near the discussion of agent orchestration. The modular building blocks visually represent multi-agent architectures.
+-->
+
 ## Graph-Based Agent Design
 
 LangGraph's key innovation is treating agent workflows as directed graphs. Each agent becomes a node that maintains its own state. Nodes connect through edges that enable:
