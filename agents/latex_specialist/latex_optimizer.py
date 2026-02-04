@@ -88,7 +88,8 @@ class LaTeXOptimizer:
     def optimize_document(self,
                          content: str,
                          markdown_content: Dict[str, str],
-                         optimization_level: str = 'moderate') -> Dict:
+                         optimization_level: str = 'moderate',
+                         pattern_context: str = "") -> Dict:
         """
         Optimize LaTeX document comprehensively.
 
@@ -96,11 +97,13 @@ class LaTeXOptimizer:
             content: Original LaTeX content or markdown content
             markdown_content: Dictionary of markdown files to convert
             optimization_level: 'conservative', 'moderate', 'aggressive'
+            pattern_context: Historical pattern context to inject into LLM prompts
 
         Returns:
             Dictionary with optimized content and optimization details
         """
         print(f"🔧 Starting LaTeX optimization (level: {optimization_level})")
+        self._current_pattern_context = pattern_context
 
         # If we have markdown content, convert to LaTeX first
         has_type_preamble = False
@@ -493,6 +496,11 @@ class LaTeXOptimizer:
 
         if rules:
             system_parts.append(f"\n\n## STRUCTURE RULES\n\n{rules}")
+
+        # Inject historical patterns if available
+        pattern_ctx = getattr(self, '_current_pattern_context', '')
+        if pattern_ctx:
+            system_parts.append(f"\n\n## HISTORICAL PATTERNS\nApply these learnings from previous documents:\n\n{pattern_ctx}")
 
         system_prompt = "\n".join(system_parts)
 

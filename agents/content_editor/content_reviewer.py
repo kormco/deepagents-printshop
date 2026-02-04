@@ -35,9 +35,11 @@ class ContentReviewer:
         self.document_type = document_type
 
         # Initialize pattern injector if available
+        self.agent_memory_context = ""
         if PatternInjector:
             try:
                 self.pattern_injector = PatternInjector(document_type=document_type)
+                self.agent_memory_context = self.pattern_injector.get_agent_memory_context("content_editor")
             except Exception as e:
                 print(f"⚠️  Could not load pattern injector: {e}")
                 self.pattern_injector = None
@@ -184,6 +186,13 @@ Please review and improve the following text for:
 {pattern_context}
 
 IMPORTANT: Apply the historical patterns above to improve this document. Look specifically for the common issues identified in previous documents of this type."""
+
+        # Add agent memory context if available
+        if self.agent_memory_context:
+            prompt += f"""
+
+## AGENT MEMORY
+{self.agent_memory_context}"""
 
         prompt += f"""
 

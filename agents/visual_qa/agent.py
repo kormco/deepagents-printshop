@@ -19,6 +19,11 @@ from tools.pdf_compiler import PDFCompiler
 from tools.version_manager import VersionManager
 from tools.change_tracker import ChangeTracker
 
+try:
+    from tools.pattern_injector import PatternInjector
+except ImportError:
+    PatternInjector = None
+
 
 @dataclass
 class ImprovementAction:
@@ -37,9 +42,20 @@ class VisualQAFeedbackAgent:
         self.visual_qa = VisualQAAgent(content_source=content_source)
         self.pdf_compiler = PDFCompiler()
         self.llm_latex_generator = LLMLaTeXGenerator()
-        self.improvement_patterns = self._load_improvement_patterns()
         self.version_manager = VersionManager()
         self.change_tracker = ChangeTracker()
+
+        # Initialize pattern injector before loading improvement patterns
+        self.pattern_injector = None
+        self.learned_visual_context = ""
+        if PatternInjector and content_source:
+            try:
+                self.pattern_injector = PatternInjector(document_type=content_source)
+                self.learned_visual_context = self.pattern_injector.get_context_for_visual_qa()
+            except Exception as e:
+                print(f"⚠️  Could not load pattern injector: {e}")
+
+        self.improvement_patterns = self._load_improvement_patterns()
 
     def _load_improvement_patterns(self) -> Dict[str, Dict]:
         """Load patterns for mapping Visual QA issues to LaTeX improvements."""
@@ -276,6 +292,10 @@ class VisualQAFeedbackAgent:
 
         # Extract issue descriptions from actions
         issues = [action.description for action in actions]
+
+        # Merge learned visual context into the issues list so the LLM sees it
+        if self.learned_visual_context:
+            issues = issues + [f"[Historical pattern] {self.learned_visual_context}"]
 
         # Use LLM-based LaTeX generator to apply fixes intelligently
         print(f"🤖 Using LLM to apply {len(issues)} improvements...")

@@ -21,6 +21,11 @@ from agents.latex_specialist.latex_optimizer import LaTeXOptimizer
 from tools.version_manager import VersionManager
 from tools.change_tracker import ChangeTracker
 
+try:
+    from tools.pattern_injector import PatternInjector
+except ImportError:
+    PatternInjector = None
+
 
 class LaTeXSpecialistAgent:
     """
@@ -51,6 +56,14 @@ class LaTeXSpecialistAgent:
         self.latex_optimizer = LaTeXOptimizer(content_source=content_source)
         self.version_manager = VersionManager()
         self.change_tracker = ChangeTracker()
+
+        # Initialize pattern injector if available
+        self.pattern_injector = None
+        if PatternInjector:
+            try:
+                self.pattern_injector = PatternInjector(document_type=content_source)
+            except Exception as e:
+                print(f"⚠️  Could not load pattern injector: {e}")
 
         # Paths
         self.reports_dir = Path("artifacts/agent_reports/quality")
@@ -233,10 +246,18 @@ Data 4 & Data 5 & Data 6 \\\\
         if markdown_content:
             print(f"📄 Converting {len(markdown_content)} markdown files to LaTeX")
 
+        # Get pattern context for the optimizer
+        pattern_context = ""
+        if self.pattern_injector:
+            pattern_context = self.pattern_injector.get_context_for_latex_specialist()
+            if pattern_context:
+                print(f"✅ Applying learned patterns for '{self.content_source}' documents")
+
         return self.latex_optimizer.optimize_document(
             content=content,
             markdown_content=markdown_content,
-            optimization_level=optimization_level
+            optimization_level=optimization_level,
+            pattern_context=pattern_context
         )
 
     def process_with_versioning(self,

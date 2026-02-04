@@ -198,6 +198,34 @@ class PatternInjector:
 
         return "\n".join(context_parts)
 
+    def get_agent_memory_context(self, agent_name: str) -> str:
+        """
+        Read .deepagents/{agent_name}/memories/*.md files and return concatenated context.
+
+        This makes the init_memory files written by each agent actually useful
+        by feeding their contents into the agent's LLM prompts.
+
+        Args:
+            agent_name: Agent directory name (e.g., 'content_editor', 'latex_specialist')
+
+        Returns:
+            Concatenated markdown content from all memory files, or empty string.
+        """
+        memory_dir = Path(".deepagents") / agent_name / "memories"
+        if not memory_dir.exists():
+            return ""
+
+        context_parts = []
+        for md_file in sorted(memory_dir.glob("*.md")):
+            try:
+                content = md_file.read_text(encoding="utf-8").strip()
+                if content:
+                    context_parts.append(content)
+            except Exception:
+                continue
+
+        return "\n\n".join(context_parts)
+
     def get_summary(self) -> str:
         """
         Get a brief summary of available patterns.

@@ -45,7 +45,7 @@ class VersionedContentEditorAgent:
         self.content_source = content_source
 
         # Initialize components
-        self.content_reviewer = ContentReviewer()
+        self.content_reviewer = ContentReviewer(document_type=content_source)
         self.version_manager = VersionManager()
         self.change_tracker = ChangeTracker()
 

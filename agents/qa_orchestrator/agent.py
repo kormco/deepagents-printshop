@@ -24,6 +24,11 @@ from agents.qa_orchestrator.pipeline_types import AgentResult
 from agents.qa_orchestrator.langgraph_workflow import compile_qa_pipeline
 from tools.version_manager import VersionManager
 
+try:
+    from tools.pattern_learner import PatternLearner
+except ImportError:
+    PatternLearner = None
+
 
 class QAOrchestratorAgent:
     """
@@ -312,6 +317,14 @@ class QAOrchestratorAgent:
 
         # Save pipeline report
         self.save_pipeline_report(results, workflow_id)
+
+        # Learn patterns from this pipeline run (non-fatal)
+        if PatternLearner:
+            try:
+                learner = PatternLearner(document_type=self.content_source)
+                learner.learn_from_pipeline_run(results)
+            except Exception as e:
+                print(f"⚠️  Pattern learning failed (non-fatal): {e}")
 
         print("=" * 70)
         print(f"QA ORCHESTRATOR: Pipeline {workflow_id} Complete")

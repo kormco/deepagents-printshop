@@ -441,15 +441,46 @@ The following fixes appear frequently across documents:
             print(f"     → {insight['recommendation']}")
 
 
+    def learn_from_pipeline_run(self, pipeline_results: Dict) -> Dict:
+        """
+        Convenience wrapper: mine patterns, save them, and generate a report.
+
+        Called by the orchestrator after a pipeline run completes.
+
+        Args:
+            pipeline_results: Results dict from the pipeline (currently unused,
+                              but available for future per-run analysis).
+
+        Returns:
+            Dictionary of learned patterns.
+        """
+        patterns = self.mine_patterns()
+        self.save_patterns(patterns)
+        self.generate_report(patterns)
+        self.print_summary(patterns)
+        return patterns
+
+
 def main():
     """Run pattern learning analysis."""
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Pattern Learner - mine version history for patterns")
+    parser.add_argument(
+        "--type", "-t",
+        default="research_report",
+        help="Document type (e.g., research_report, magazine)"
+    )
+    args = parser.parse_args()
+
+    document_type = args.type
+
     print("\n" + "=" * 60)
     print("🧠 DeepAgents PrintShop - Pattern Learner")
     print("=" * 60)
     print("\nMilestone 3: Mining version history for improvement patterns\n")
 
     # Initialize learner with document type
-    document_type = "research_report"  # Default document type
     learner = PatternLearner(document_type=document_type)
     print(f"📄 Learning patterns for document type: {document_type}\n")
 
