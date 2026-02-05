@@ -70,7 +70,7 @@ line-length = 120
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "W"]
-ignore = ["E501"]
+ignore = ["E501", "E402"]  # E402: module-level import not at top (sys.path manipulation)
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

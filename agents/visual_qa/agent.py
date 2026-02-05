@@ -1,23 +1,19 @@
 """Dynamic Visual QA Agent that processes findings and applies improvements."""
 
 import os
-import json
-import re
 import shutil
-from pathlib import Path
-from typing import Dict, List, Tuple, Optional
-from dataclasses import dataclass
-
 import sys
-import os
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Dict, List, Optional, Tuple
+
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from tools.visual_qa import VisualQAAgent, DocumentVisualQA
-from tools.latex_generator import LaTeXGenerator, DocumentConfig
+from tools.change_tracker import ChangeTracker
 from tools.llm_latex_generator import LLMLaTeXGenerator
 from tools.pdf_compiler import PDFCompiler
 from tools.version_manager import VersionManager
-from tools.change_tracker import ChangeTracker
+from tools.visual_qa import DocumentVisualQA, VisualQAAgent
 
 try:
     from tools.pattern_injector import PatternInjector
@@ -361,7 +357,7 @@ class VisualQAFeedbackAgent:
                 return True
 
             # Compilation failed - enter self-correction loop
-            print(f"⚠️ Initial compilation failed. Starting LLM self-correction...")
+            print("⚠️ Initial compilation failed. Starting LLM self-correction...")
 
             # Read the failed LaTeX
             with open(tex_path, 'r', encoding='utf-8') as f:
@@ -392,7 +388,7 @@ class VisualQAFeedbackAgent:
                     if os.path.exists(output_pdf):
                         os.remove(output_pdf)
                     shutil.move(generated_pdf, output_pdf)
-                print(f"✅ LLM self-correction successful! PDF generated.")
+                print("✅ LLM self-correction successful! PDF generated.")
                 return True
             else:
                 print(f"❌ Compilation still failed after LLM correction: {message}")
@@ -417,7 +413,7 @@ def main():
 
     final_pdf, improvements, final_version = agent.analyze_and_improve(pdf_path)
 
-    print(f"\n🎉 Process Complete!")
+    print("\n🎉 Process Complete!")
     print(f"📄 Final PDF: {final_pdf}")
     if final_version:
         print(f"📦 Final Version: {final_version}")

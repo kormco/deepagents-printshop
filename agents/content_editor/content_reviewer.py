@@ -4,11 +4,12 @@ Content Reviewer Tool
 Provides content analysis and improvement capabilities using LLM-based review.
 """
 
-import re
 import os
+import re
 import sys
 from pathlib import Path
-from typing import Dict, List, Tuple, Optional
+from typing import Dict, List, Tuple
+
 from anthropic import Anthropic
 
 # Add project root to path for pattern injector
@@ -170,7 +171,7 @@ class ContentReviewer:
                 print(f"✅ Applying learned patterns for '{self.document_type}' documents")
 
         # Build prompt with pattern learning context
-        prompt = f"""You are a professional editor specializing in academic and technical writing.
+        prompt = """You are a professional editor specializing in academic and technical writing.
 
 Please review and improve the following text for:
 1. Grammar and spelling errors

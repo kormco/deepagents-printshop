@@ -5,21 +5,21 @@ Specialized agent for optimizing LaTeX formatting, typography, and document stru
 Integrates with version management system to create v2_latex_optimized versions.
 """
 
-import os
-import sys
-from pathlib import Path
-from typing import Dict, List, Optional
 import json
+import re
+import sys
 from datetime import datetime
+from pathlib import Path
+from typing import Dict, Optional
 
 # Add project root to path
 project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
 
-from agents.latex_specialist.latex_analyzer import LaTeXAnalyzer, LaTeXAnalysisResult
+from agents.latex_specialist.latex_analyzer import LaTeXAnalysisResult, LaTeXAnalyzer
 from agents.latex_specialist.latex_optimizer import LaTeXOptimizer
-from tools.version_manager import VersionManager
 from tools.change_tracker import ChangeTracker
+from tools.version_manager import VersionManager
 
 try:
     from tools.pattern_injector import PatternInjector
@@ -288,7 +288,6 @@ Data 4 & Data 5 & Data 6 \\\\
 
         # Analyze parent version LaTeX quality (if it's already LaTeX)
         parent_latex_content = ""
-        parent_quality_scores = {}
 
         # Convert markdown content to LaTeX and optimize
         print("\n🔄 Converting and optimizing content...")
@@ -307,7 +306,7 @@ Data 4 & Data 5 & Data 6 \\\\
         print("\n📊 Analyzing optimized LaTeX quality...")
         latex_analysis = self.analyze_latex_quality(optimized_latex)
 
-        print(f"📈 LaTeX Quality Scores:")
+        print("📈 LaTeX Quality Scores:")
         print(f"  • Structure: {latex_analysis.structure_score}/25")
         print(f"  • Typography: {latex_analysis.typography_score}/25")
         print(f"  • Tables/Figures: {latex_analysis.tables_figures_score}/25")
@@ -321,7 +320,7 @@ Data 4 & Data 5 & Data 6 \\\\
 
         # Create version metadata
         version_metadata = {
-            "description": f"LaTeX formatting and typography optimized",
+            "description": "LaTeX formatting and typography optimized",
             "purpose": "latex_optimization",
             "optimization_level": optimization_level,
             "latex_quality_score": latex_analysis.overall_score,
@@ -344,7 +343,7 @@ Data 4 & Data 5 & Data 6 \\\\
         )
 
         # Generate change comparison (markdown to LaTeX)
-        print(f"\n📊 Generating change analysis...")
+        print("\n📊 Generating change analysis...")
         change_report = self.change_tracker.create_change_report(
             old_version=parent_version,
             new_version=target_version,
@@ -377,7 +376,7 @@ Data 4 & Data 5 & Data 6 \\\\
         # Save processing report
         self.save_processing_report(processing_results, target_version)
 
-        print(f"\n✅ LaTeX optimization complete!")
+        print("\n✅ LaTeX optimization complete!")
         print(f"   Version created: {target_version}")
         print(f"   LaTeX quality score: {latex_analysis.overall_score}/100")
         print(f"   Optimizations applied: {len(optimizations_applied)}")
@@ -518,7 +517,7 @@ def main():
 
     try:
         # Process content with versioning
-        results = agent.process_with_versioning(
+        agent.process_with_versioning(
             parent_version="v1_content_edited",
             target_version="v2_latex_optimized",
             optimization_level="moderate"
@@ -534,7 +533,7 @@ def main():
 
         # Show version statistics
         stats = agent.version_manager.get_version_stats()
-        print(f"\n📊 Version Statistics:")
+        print("\n📊 Version Statistics:")
         print(f"  Total versions: {stats['total_versions']}")
         print(f"  Agents used: {', '.join(stats['agents_used'])}")
         print(f"  Latest version: {stats['latest_version']}")

@@ -5,23 +5,22 @@ Master orchestration agent that coordinates all specialized QA agents in an auto
 with quality gates, decision logic, and iterative improvement workflows.
 """
 
-import os
-import sys
 import json
 import shutil
+import sys
 import uuid
-from pathlib import Path
-from typing import Dict, List, Optional
 from datetime import datetime
+from pathlib import Path
+from typing import Dict, Optional
 
 # Add project root to path
 project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
 
+from agents.qa_orchestrator.langgraph_workflow import compile_qa_pipeline
+from agents.qa_orchestrator.pipeline_types import AgentResult
 from agents.qa_orchestrator.quality_gates import QualityGateManager, QualityThresholds
 from agents.qa_orchestrator.workflow_coordinator import WorkflowCoordinator
-from agents.qa_orchestrator.pipeline_types import AgentResult
-from agents.qa_orchestrator.langgraph_workflow import compile_qa_pipeline
 from tools.version_manager import VersionManager
 
 try:
@@ -425,7 +424,6 @@ class QAOrchestratorAgent:
     def create_pipeline_markdown(self, results: Dict, output_path: Path):
         """Create human-readable pipeline summary."""
         metadata = results["pipeline_metadata"]
-        workflow = results["workflow_execution"]
         quality = results["quality_results"]
         outcome = results["pipeline_outcome"]
 
@@ -467,7 +465,7 @@ class QAOrchestratorAgent:
         # Quality progression
         quality_progression = quality["quality_progression"]
         if quality_progression:
-            content += f"""### Quality Progression
+            content += """### Quality Progression
 | Iteration | Content Score | LaTeX Score | Overall Score |
 |-----------|---------------|-------------|---------------|
 """
@@ -513,7 +511,7 @@ class QAOrchestratorAgent:
 - **Version Created:** {agent_detail["version_created"]}
 """
 
-        content += f"""
+        content += """
 ## Recommendations
 
 """
@@ -553,7 +551,7 @@ class QAOrchestratorAgent:
         outcome = results["pipeline_outcome"]
         final_assessment = results["quality_results"]["final_assessment"]
 
-        print(f"PIPELINE SUMMARY")
+        print("PIPELINE SUMMARY")
         print(f"  Status: {'Success' if outcome['success'] else 'Escalated' if outcome['escalated'] else 'Failed'}")
         print(f"  Iterations: {outcome['iterations_completed']}")
         print(f"  Final Version: {results['version_management']['final_version']}")
@@ -597,7 +595,7 @@ def main():
 
     try:
         # Run complete QA pipeline
-        results = agent.orchestrate_qa_pipeline(
+        agent.orchestrate_qa_pipeline(
             starting_version="v0_original",
             workflow_id=run_id,
             output_dir=output_dir,

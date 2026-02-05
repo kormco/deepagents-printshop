@@ -7,7 +7,7 @@ Uses historical learnings to guide LLM behavior without hard-coding fixes.
 
 import json
 from pathlib import Path
-from typing import Dict, Optional
+from typing import Dict
 
 
 class PatternInjector:
@@ -98,7 +98,7 @@ class PatternInjector:
                 avg_score = sum(scores) / len(scores)
                 max_score = max(scores)
 
-                context_parts.append(f"\n## Quality Baseline\n")
+                context_parts.append("\n## Quality Baseline\n")
                 context_parts.append(f"- Average historical quality score: {avg_score:.1f}/100\n")
                 context_parts.append(f"- Best score achieved: {max_score}/100\n")
                 context_parts.append(f"- Target for this document: {min(max_score + 5, 100)}/100\n")
@@ -139,9 +139,9 @@ class PatternInjector:
             scores = [imp["score"] for imp in self.patterns["quality_improvements"]]
             if scores:
                 avg_score = sum(scores) / len(scores)
-                context_parts.append(f"\n## Quality Expectations\n")
+                context_parts.append("\n## Quality Expectations\n")
                 context_parts.append(f"Previous documents achieved an average quality of {avg_score:.1f}/100.\n")
-                context_parts.append(f"Aim for content that will support or exceed this quality level.\n")
+                context_parts.append("Aim for content that will support or exceed this quality level.\n")
 
         return "\n".join(context_parts)
 
