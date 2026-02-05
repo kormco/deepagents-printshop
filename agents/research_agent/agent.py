@@ -5,7 +5,6 @@ A specialized agent for generating LaTeX research reports with persistent memory
 Integrates with DeepAgents CLI framework.
 """
 
-import os
 import sys
 from pathlib import Path
 

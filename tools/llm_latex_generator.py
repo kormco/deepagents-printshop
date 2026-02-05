@@ -1,9 +1,10 @@
 """LLM-Based LaTeX Generator that uses Claude for intelligent document generation."""
 
-import os
 import json
-from typing import List, Dict, Optional, Tuple
+import os
 from dataclasses import dataclass
+from typing import Dict, List, Optional, Tuple
+
 import anthropic
 
 
@@ -201,12 +202,12 @@ Author: {request.author}
                 placement = fig.get('placement', '')
                 prompt += f"Figure: {caption}\n"
                 prompt += f"  Placement hint: {placement}\n" if placement else ""
-                prompt += f"  USE THIS EXACT CODE:\n"
-                prompt += f"  \\begin{{figure}}[H]\n"
-                prompt += f"  \\centering\n"
+                prompt += "  USE THIS EXACT CODE:\n"
+                prompt += "  \\begin{figure}[H]\n"
+                prompt += "  \\centering\n"
                 prompt += f"  \\includegraphics[width={width}]{{{path}}}\n"
                 prompt += f"  \\caption{{{caption}}}\n"
-                prompt += f"  \\end{{figure}}\n\n"
+                prompt += "  \\end{figure}\n\n"
 
         prompt += """
 
@@ -320,7 +321,7 @@ Then provide the CORRECTED LaTeX code (complete document).
                     end = response_text.find('}', start) + 1
                     issues_json = json.loads(response_text[start:end])
                     warnings = issues_json.get('issues', [])
-                except:
+                except (json.JSONDecodeError, ValueError):
                     warnings = ["Unable to parse validation issues"]
 
             # Extract fixed LaTeX
@@ -453,7 +454,7 @@ Generate a small block of LaTeX commands that should be INSERTED just before \\b
                 return latex_content, False, []
 
             fixes_applied = [f"Applied patch: {patch_content[:100]}..."]
-            print(f"✅ Successfully applied Visual QA patch")
+            print("✅ Successfully applied Visual QA patch")
 
             return fixed_latex, True, fixes_applied
 
@@ -477,11 +478,7 @@ Generate a small block of LaTeX commands that should be INSERTED just before \\b
         Returns:
             Tuple of (completed_latex, success)
         """
-        print(f"🔧 Completing truncated document...")
-
-        # Take the last ~4000 characters for context
-        context_size = 4000
-        context_text = latex_content[-context_size:] if len(latex_content) > context_size else latex_content
+        print("🔧 Completing truncated document...")
 
         # Find a good cut point - end of a complete line or environment
         cut_point = len(latex_content)
@@ -500,6 +497,7 @@ Generate a small block of LaTeX commands that should be INSERTED just before \\b
 
         # Get the truncated portion we're keeping
         keep_text = latex_content[:cut_point]
+        context_size = 4000
         context_for_llm = keep_text[-context_size:] if len(keep_text) > context_size else keep_text
 
         for attempt in range(1, max_attempts + 1):
@@ -595,7 +593,7 @@ Return ONLY the LaTeX completion code, no explanations."""
         Returns:
             Tuple of (corrected_latex, success, corrections_made)
         """
-        print(f"🤖 LLM Self-Correction: Analyzing compilation error...")
+        print("🤖 LLM Self-Correction: Analyzing compilation error...")
 
         corrections_made = []
         current_latex = latex_content

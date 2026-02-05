@@ -4,12 +4,13 @@ LaTeX Optimizer - Milestone 3
 Optimizes LaTeX document structure, typography, and formatting for professional quality.
 """
 
-import re
-import os
 import csv
-from typing import Dict, List, Tuple, Optional
-from pathlib import Path
+import os
+import re
 from datetime import datetime
+from pathlib import Path
+from typing import Dict, List, Tuple
+
 import anthropic
 
 # Add project root to path
@@ -17,8 +18,8 @@ project_root = Path(__file__).parent.parent.parent
 if str(project_root) not in __import__('sys').path:
     __import__('sys').path.insert(0, str(project_root))
 
-from tools.latex_generator import LaTeXGenerator, DocumentConfig
 from tools.content_type_loader import ContentTypeLoader
+from tools.latex_generator import LaTeXGenerator
 
 
 class LaTeXOptimizer:
@@ -88,7 +89,8 @@ class LaTeXOptimizer:
     def optimize_document(self,
                          content: str,
                          markdown_content: Dict[str, str],
-                         optimization_level: str = 'moderate') -> Dict:
+                         optimization_level: str = 'moderate',
+                         pattern_context: str = "") -> Dict:
         """
         Optimize LaTeX document comprehensively.
 
@@ -96,11 +98,13 @@ class LaTeXOptimizer:
             content: Original LaTeX content or markdown content
             markdown_content: Dictionary of markdown files to convert
             optimization_level: 'conservative', 'moderate', 'aggressive'
+            pattern_context: Historical pattern context to inject into LLM prompts
 
         Returns:
             Dictionary with optimized content and optimization details
         """
         print(f"🔧 Starting LaTeX optimization (level: {optimization_level})")
+        self._current_pattern_context = pattern_context
 
         # If we have markdown content, convert to LaTeX first
         has_type_preamble = False
@@ -430,7 +434,7 @@ class LaTeXOptimizer:
                 print(f"   [LaTeX] WARNING: Content type '{content_type_id}' has ZERO preamble blocks — falling back to default preamble. "
                       f"This is likely a bug (type.md not found or missing ```latex blocks).")
             else:
-                print(f"   [LaTeX] Using default preamble (no content type preamble blocks)")
+                print("   [LaTeX] Using default preamble (no content type preamble blocks)")
             preamble_lines.append(self._default_preamble())
 
         return "\n\n".join(preamble_lines)
@@ -493,6 +497,11 @@ class LaTeXOptimizer:
 
         if rules:
             system_parts.append(f"\n\n## STRUCTURE RULES\n\n{rules}")
+
+        # Inject historical patterns if available
+        pattern_ctx = getattr(self, '_current_pattern_context', '')
+        if pattern_ctx:
+            system_parts.append(f"\n\n## HISTORICAL PATTERNS\nApply these learnings from previous documents:\n\n{pattern_ctx}")
 
         system_prompt = "\n".join(system_parts)
 
@@ -625,7 +634,6 @@ class LaTeXOptimizer:
     def _process_csv_table_references(self, content: str, content_dir: str = "artifacts/sample_content") -> str:
         """Process CSV table references in markdown content."""
         import re
-        from pathlib import Path
 
         # Pattern to match CSV table comments (including multi-line with flexible spacing)
         csv_pattern = r'<!-- CSV_TABLE:\s*(.*?)\s*-->'
@@ -641,7 +649,6 @@ class LaTeXOptimizer:
     def _process_image_references(self, content: str, content_dir: str = "artifacts/sample_content") -> str:
         """Process IMAGE references in markdown content and convert to LaTeX figures."""
         import re
-        from pathlib import Path
 
         # Pattern to match IMAGE comments (multi-line)
         image_pattern = r'<!-- IMAGE:\s*(.*?)\s*-->'
@@ -760,8 +767,8 @@ class LaTeXOptimizer:
 
     def _convert_csv_reference_to_latex(self, metadata_text: str, content_dir: str) -> str:
         """Convert a single CSV reference to LaTeX table."""
-        from pathlib import Path
         import csv
+        from pathlib import Path
 
         # Parse metadata from the comment
         metadata = self._parse_csv_metadata(metadata_text)

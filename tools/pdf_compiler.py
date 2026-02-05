@@ -1,10 +1,9 @@
 """PDF compiler for LaTeX documents with intelligent error correction."""
 
-import os
 import re
 import subprocess
 from pathlib import Path
-from typing import Optional, Tuple, List, Dict
+from typing import Dict, Optional, Tuple
 
 
 class PDFCompiler:
@@ -190,7 +189,7 @@ class PDFCompiler:
         return content
 
     def _fix_misplaced_table_rules(self, content: str) -> str:
-        """Fix misplaced table rules like \midrule."""
+        r"""Fix misplaced table rules like \midrule."""
         # Look for table environments and ensure rules are properly placed
         pattern = r'(\\begin\{tabular\}[^}]*\}[^\\]*)(\\toprule.*?)(\\end\{tabular\})'
 
@@ -206,7 +205,7 @@ class PDFCompiler:
             for line in lines:
                 stripped = line.strip()
                 # Fix percentage signs that need escaping
-                if '(%)' in stripped and not '(\\%)' in stripped:
+                if '(%)' in stripped and '(\\%)' not in stripped:
                     line = line.replace('(%)', '(\\%)')
                 fixed_lines.append(line)
 

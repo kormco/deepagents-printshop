@@ -4,20 +4,19 @@ Versioned Content Editor Agent - Milestone 2
 Enhanced content editor that integrates with version management and change tracking.
 """
 
-import os
-import sys
-from pathlib import Path
-from typing import Dict, List, Optional
 import json
+import sys
 from datetime import datetime
+from pathlib import Path
+from typing import Dict, List
 
 # Add project root to path
 project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
 
 from agents.content_editor.content_reviewer import ContentReviewer
-from tools.version_manager import VersionManager
 from tools.change_tracker import ChangeTracker
+from tools.version_manager import VersionManager
 
 
 class VersionedContentEditorAgent:
@@ -45,7 +44,7 @@ class VersionedContentEditorAgent:
         self.content_source = content_source
 
         # Initialize components
-        self.content_reviewer = ContentReviewer()
+        self.content_reviewer = ContentReviewer(document_type=content_source)
         self.version_manager = VersionManager()
         self.change_tracker = ChangeTracker()
 
@@ -251,7 +250,7 @@ class VersionedContentEditorAgent:
 
         # Create new version
         version_metadata = {
-            "description": f"Content improved by ContentEditorAgent",
+            "description": "Content improved by ContentEditorAgent",
             "purpose": "content_editing",
             "parent_avg_quality": parent_avg_quality,
             "improved_avg_quality": improved_avg_quality,
@@ -426,7 +425,7 @@ def main():
 
     try:
         # Process content with versioning
-        results = agent.process_content_with_versioning()
+        agent.process_content_with_versioning()
 
         # Show version history
         print("\n📜 Version History:")
@@ -437,7 +436,7 @@ def main():
 
         # Show version statistics
         stats = agent.version_manager.get_version_stats()
-        print(f"\n📊 Version Statistics:")
+        print("\n📊 Version Statistics:")
         print(f"  Total versions: {stats['total_versions']}")
         print(f"  Agents used: {', '.join(stats['agents_used'])}")
         print(f"  Latest version: {stats['latest_version']}")

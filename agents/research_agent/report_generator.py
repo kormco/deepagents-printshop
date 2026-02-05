@@ -5,7 +5,6 @@ This module demonstrates the LaTeX report generation capabilities
 for the DeepAgents PrintShop research agent.
 """
 
-import os
 import sys
 from pathlib import Path
 from typing import Dict
@@ -13,11 +12,9 @@ from typing import Dict
 # Add tools to path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from tools.latex_generator import (
-    LaTeXGenerator, DocumentConfig, markdown_to_latex
-)
-from tools.pdf_compiler import PDFCompiler
 from tools.content_type_loader import ContentTypeLoader
+from tools.latex_generator import DocumentConfig, LaTeXGenerator, markdown_to_latex
+from tools.pdf_compiler import PDFCompiler
 
 
 class ResearchReportGenerator:

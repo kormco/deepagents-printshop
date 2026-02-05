@@ -5,12 +5,11 @@ A specialized agent for improving grammar, readability, and overall content qual
 Part of the DeepAgents PrintShop quality assurance system.
 """
 
-import os
-import sys
-from pathlib import Path
-from typing import Dict, List, Tuple
 import json
+import sys
 from datetime import datetime
+from pathlib import Path
+from typing import Dict
 
 # Add project root to path
 project_root = Path(__file__).parent.parent.parent

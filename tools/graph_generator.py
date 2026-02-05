@@ -1,11 +1,12 @@
 """Graph Generator for Magazine Data Visualizations."""
 
-import os
 from pathlib import Path
-from typing import Dict, List, Optional
-import pandas as pd
-import matplotlib.pyplot as plt
+from typing import List
+
 import matplotlib
+import matplotlib.pyplot as plt
+import pandas as pd
+
 matplotlib.use('Agg')  # Non-interactive backend
 
 # Set style for magazine-quality charts

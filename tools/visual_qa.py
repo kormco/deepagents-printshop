@@ -1,12 +1,12 @@
 """Visual Quality Assurance for PDF documents."""
 
-import os
 import base64
 import io
-from pathlib import Path
-from typing import List, Dict, Optional, Tuple
+import os
 from dataclasses import dataclass
 from datetime import datetime
+from pathlib import Path
+from typing import Dict, List, Optional, Tuple
 
 from pdf2image import convert_from_path
 from PIL import Image
@@ -350,7 +350,7 @@ JSON response format:
             scale -= 0.1
 
         # Final fallback - aggressive resize
-        print(f"   ⚠️ Using aggressive compression")
+        print("   ⚠️ Using aggressive compression")
         new_size = (int(image.width * 0.25), int(image.height * 0.25))
         resized = image.resize(new_size, Image.Resampling.LANCZOS)
         buffer = io.BytesIO()
@@ -568,7 +568,7 @@ class VisualQAAgent:
             return self._create_error_result(pdf_path, "Failed to convert PDF to images")
 
         # Save images for reference
-        image_paths = self.pdf_converter.save_images(
+        self.pdf_converter.save_images(
             images,
             str(self.output_dir / "page_images"),
             "page"
@@ -585,8 +585,8 @@ class VisualQAAgent:
             page_type = self.validator.detect_page_type(i, len(images))
             print(f"   Detected page type: {page_type}")
 
-            # Basic validation
-            basic_checks = self.validator.validate_basic_structure(image, page_type)
+            # Basic validation (validates structure, results used internally by validator)
+            self.validator.validate_basic_structure(image, page_type)
 
             # LLM analysis
             llm_analysis = self.llm_analyzer.analyze_page(image, page_type)
@@ -627,7 +627,7 @@ class VisualQAAgent:
         )
 
         print("\n" + "=" * 60)
-        print(f"🎯 Visual QA Complete!")
+        print("🎯 Visual QA Complete!")
         print(f"   Overall Score: {overall_score:.1f}/100")
         print(f"   Pages Analyzed: {len(images)}")
         print(f"   Issues Found: {sum(len(p.issues_found) for p in page_results)}")
@@ -730,18 +730,18 @@ Pages include: {', '.join(set(p.page_type.replace('_', ' ').title() for p in pag
                 report_content += f"- {element.replace('_', ' ').title()}: {score}/10\n"
 
             if page.issues_found:
-                report_content += f"\n**Issues Found:**\n"
+                report_content += "\n**Issues Found:**\n"
                 for issue in page.issues_found:
                     report_content += f"- {issue}\n"
 
             if page.strengths_found:
-                report_content += f"\n**Strengths:**\n"
+                report_content += "\n**Strengths:**\n"
                 for strength in page.strengths_found:
                     report_content += f"- {strength}\n"
 
             report_content += f"\n**Detailed Feedback:**\n{page.detailed_feedback}\n\n"
 
-        report_content += f"""## Recommendations
+        report_content += """## Recommendations
 
 """
         for rec in result.recommendations:
@@ -785,7 +785,7 @@ def main():
         # Save report
         report_path = agent.save_report(result)
 
-        print(f"\n✅ Visual QA Complete!")
+        print("\n✅ Visual QA Complete!")
         print(f"📊 Overall Score: {result.overall_score:.1f}/100")
         print(f"📄 Report: {report_path}")
 

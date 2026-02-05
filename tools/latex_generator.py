@@ -1,8 +1,7 @@
 """LaTeX document generator with comprehensive formatting support."""
 
-import os
-from typing import List, Dict, Optional
 from dataclasses import dataclass, field
+from typing import List, Optional
 
 
 @dataclass

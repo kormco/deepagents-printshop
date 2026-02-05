@@ -4,11 +4,12 @@ Content Reviewer Tool
 Provides content analysis and improvement capabilities using LLM-based review.
 """
 
-import re
 import os
+import re
 import sys
 from pathlib import Path
-from typing import Dict, List, Tuple, Optional
+from typing import Dict, List, Tuple
+
 from anthropic import Anthropic
 
 # Add project root to path for pattern injector
@@ -35,9 +36,11 @@ class ContentReviewer:
         self.document_type = document_type
 
         # Initialize pattern injector if available
+        self.agent_memory_context = ""
         if PatternInjector:
             try:
                 self.pattern_injector = PatternInjector(document_type=document_type)
+                self.agent_memory_context = self.pattern_injector.get_agent_memory_context("content_editor")
             except Exception as e:
                 print(f"⚠️  Could not load pattern injector: {e}")
                 self.pattern_injector = None
@@ -168,7 +171,7 @@ class ContentReviewer:
                 print(f"✅ Applying learned patterns for '{self.document_type}' documents")
 
         # Build prompt with pattern learning context
-        prompt = f"""You are a professional editor specializing in academic and technical writing.
+        prompt = """You are a professional editor specializing in academic and technical writing.
 
 Please review and improve the following text for:
 1. Grammar and spelling errors
@@ -184,6 +187,13 @@ Please review and improve the following text for:
 {pattern_context}
 
 IMPORTANT: Apply the historical patterns above to improve this document. Look specifically for the common issues identified in previous documents of this type."""
+
+        # Add agent memory context if available
+        if self.agent_memory_context:
+            prompt += f"""
+
+## AGENT MEMORY
+{self.agent_memory_context}"""
 
         prompt += f"""
 

@@ -25,8 +25,6 @@ project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
 
 from agents.qa_orchestrator.quality_gates import (  # noqa: E402, I001
-    QualityAssessment,
-    QualityGateEvaluation,
     QualityGateResult,
 )
 from agents.qa_orchestrator.pipeline_types import AgentResult, AgentType  # noqa: E402, I001
@@ -371,8 +369,8 @@ def latex_optimization_node(state: PipelineState) -> Dict[str, Any]:
 
     if result.success:
         try:
-            from tools.version_manager import VersionManager as _VM
             from tools.pdf_compiler import PDFCompiler
+            from tools.version_manager import VersionManager as _VM
 
             vm = _VM()
             version_content = vm.get_version_content(target_version)

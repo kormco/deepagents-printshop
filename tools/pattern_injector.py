@@ -7,7 +7,7 @@ Uses historical learnings to guide LLM behavior without hard-coding fixes.
 
 import json
 from pathlib import Path
-from typing import Dict, Optional
+from typing import Dict
 
 
 class PatternInjector:
@@ -98,7 +98,7 @@ class PatternInjector:
                 avg_score = sum(scores) / len(scores)
                 max_score = max(scores)
 
-                context_parts.append(f"\n## Quality Baseline\n")
+                context_parts.append("\n## Quality Baseline\n")
                 context_parts.append(f"- Average historical quality score: {avg_score:.1f}/100\n")
                 context_parts.append(f"- Best score achieved: {max_score}/100\n")
                 context_parts.append(f"- Target for this document: {min(max_score + 5, 100)}/100\n")
@@ -139,9 +139,9 @@ class PatternInjector:
             scores = [imp["score"] for imp in self.patterns["quality_improvements"]]
             if scores:
                 avg_score = sum(scores) / len(scores)
-                context_parts.append(f"\n## Quality Expectations\n")
+                context_parts.append("\n## Quality Expectations\n")
                 context_parts.append(f"Previous documents achieved an average quality of {avg_score:.1f}/100.\n")
-                context_parts.append(f"Aim for content that will support or exceed this quality level.\n")
+                context_parts.append("Aim for content that will support or exceed this quality level.\n")
 
         return "\n".join(context_parts)
 
@@ -197,6 +197,34 @@ class PatternInjector:
                 context_parts.append(f"💡 {insight['recommendation']}\n")
 
         return "\n".join(context_parts)
+
+    def get_agent_memory_context(self, agent_name: str) -> str:
+        """
+        Read .deepagents/{agent_name}/memories/*.md files and return concatenated context.
+
+        This makes the init_memory files written by each agent actually useful
+        by feeding their contents into the agent's LLM prompts.
+
+        Args:
+            agent_name: Agent directory name (e.g., 'content_editor', 'latex_specialist')
+
+        Returns:
+            Concatenated markdown content from all memory files, or empty string.
+        """
+        memory_dir = Path(".deepagents") / agent_name / "memories"
+        if not memory_dir.exists():
+            return ""
+
+        context_parts = []
+        for md_file in sorted(memory_dir.glob("*.md")):
+            try:
+                content = md_file.read_text(encoding="utf-8").strip()
+                if content:
+                    context_parts.append(content)
+            except Exception:
+                continue
+
+        return "\n\n".join(context_parts)
 
     def get_summary(self) -> str:
         """

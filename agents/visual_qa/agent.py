@@ -1,23 +1,24 @@
 """Dynamic Visual QA Agent that processes findings and applies improvements."""
 
 import os
-import json
-import re
 import shutil
-from pathlib import Path
-from typing import Dict, List, Tuple, Optional
-from dataclasses import dataclass
-
 import sys
-import os
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Dict, List, Optional, Tuple
+
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from tools.visual_qa import VisualQAAgent, DocumentVisualQA
-from tools.latex_generator import LaTeXGenerator, DocumentConfig
+from tools.change_tracker import ChangeTracker
 from tools.llm_latex_generator import LLMLaTeXGenerator
 from tools.pdf_compiler import PDFCompiler
 from tools.version_manager import VersionManager
-from tools.change_tracker import ChangeTracker
+from tools.visual_qa import DocumentVisualQA, VisualQAAgent
+
+try:
+    from tools.pattern_injector import PatternInjector
+except ImportError:
+    PatternInjector = None
 
 
 @dataclass
@@ -37,9 +38,20 @@ class VisualQAFeedbackAgent:
         self.visual_qa = VisualQAAgent(content_source=content_source)
         self.pdf_compiler = PDFCompiler()
         self.llm_latex_generator = LLMLaTeXGenerator()
-        self.improvement_patterns = self._load_improvement_patterns()
         self.version_manager = VersionManager()
         self.change_tracker = ChangeTracker()
+
+        # Initialize pattern injector before loading improvement patterns
+        self.pattern_injector = None
+        self.learned_visual_context = ""
+        if PatternInjector and content_source:
+            try:
+                self.pattern_injector = PatternInjector(document_type=content_source)
+                self.learned_visual_context = self.pattern_injector.get_context_for_visual_qa()
+            except Exception as e:
+                print(f"⚠️  Could not load pattern injector: {e}")
+
+        self.improvement_patterns = self._load_improvement_patterns()
 
     def _load_improvement_patterns(self) -> Dict[str, Dict]:
         """Load patterns for mapping Visual QA issues to LaTeX improvements."""
@@ -277,6 +289,10 @@ class VisualQAFeedbackAgent:
         # Extract issue descriptions from actions
         issues = [action.description for action in actions]
 
+        # Merge learned visual context into the issues list so the LLM sees it
+        if self.learned_visual_context:
+            issues = issues + [f"[Historical pattern] {self.learned_visual_context}"]
+
         # Use LLM-based LaTeX generator to apply fixes intelligently
         print(f"🤖 Using LLM to apply {len(issues)} improvements...")
         fixed_latex, success, fixes_applied = self.llm_latex_generator.apply_visual_qa_fixes(
@@ -341,7 +357,7 @@ class VisualQAFeedbackAgent:
                 return True
 
             # Compilation failed - enter self-correction loop
-            print(f"⚠️ Initial compilation failed. Starting LLM self-correction...")
+            print("⚠️ Initial compilation failed. Starting LLM self-correction...")
 
             # Read the failed LaTeX
             with open(tex_path, 'r', encoding='utf-8') as f:
@@ -372,7 +388,7 @@ class VisualQAFeedbackAgent:
                     if os.path.exists(output_pdf):
                         os.remove(output_pdf)
                     shutil.move(generated_pdf, output_pdf)
-                print(f"✅ LLM self-correction successful! PDF generated.")
+                print("✅ LLM self-correction successful! PDF generated.")
                 return True
             else:
                 print(f"❌ Compilation still failed after LLM correction: {message}")
@@ -397,7 +413,7 @@ def main():
 
     final_pdf, improvements, final_version = agent.analyze_and_improve(pdf_path)
 
-    print(f"\n🎉 Process Complete!")
+    print("\n🎉 Process Complete!")
     print(f"📄 Final PDF: {final_pdf}")
     if final_version:
         print(f"📦 Final Version: {final_version}")
