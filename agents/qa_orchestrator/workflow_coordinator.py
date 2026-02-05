@@ -14,10 +14,10 @@ from typing import Any, Dict, List
 project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
 
-from agents.qa_orchestrator.quality_gates import QualityGateManager, QualityAssessment
 from agents.qa_orchestrator.pipeline_types import AgentResult, AgentType, WorkflowStage  # noqa: F401  -- re-exported
-from tools.version_manager import VersionManager
+from agents.qa_orchestrator.quality_gates import QualityAssessment, QualityGateManager
 from tools.change_tracker import ChangeTracker
+from tools.version_manager import VersionManager
 
 
 class WorkflowCoordinator:

@@ -4,12 +4,12 @@ Version Manager - Milestone 2
 Handles content versioning, tracking, and management for iterative improvements.
 """
 
+import hashlib
 import json
 import shutil
-from pathlib import Path
 from datetime import datetime
-from typing import Dict, List, Optional, Tuple
-import hashlib
+from pathlib import Path
+from typing import Dict, List, Optional
 
 
 class VersionManager:

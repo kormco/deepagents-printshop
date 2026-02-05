@@ -5,10 +5,8 @@ Analyzes LaTeX document structure, typography, and formatting quality.
 """
 
 import re
-import os
-from typing import Dict, List, Tuple, Optional
-from pathlib import Path
 from dataclasses import dataclass
+from typing import Dict, List, Optional
 
 
 @dataclass
@@ -472,7 +470,7 @@ class LaTeXAnalyzer:
                         category='structure',
                         description=f'Section hierarchy skip detected at "{section["title"]}"',
                         line_number=section['line'],
-                        suggestion=f'Consider adding intermediate section levels'
+                        suggestion='Consider adding intermediate section levels'
                     ))
 
                 prev_level_index = level_index

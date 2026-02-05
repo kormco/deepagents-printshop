@@ -13,8 +13,8 @@ Provides LaTeX macro definitions for creating professional magazine layouts incl
 - Pull quotes and vertical text elements
 """
 
-from typing import Dict, List, Optional
-from dataclasses import dataclass, field
+from dataclasses import dataclass
+from typing import List, Optional
 
 
 @dataclass

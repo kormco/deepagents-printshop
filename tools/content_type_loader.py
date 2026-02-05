@@ -7,7 +7,7 @@ Provides structured metadata for DocumentConfig and raw markdown for LLM prompts
 
 import logging
 import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 from typing import List, Optional
 

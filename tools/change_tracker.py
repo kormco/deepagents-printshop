@@ -6,11 +6,9 @@ Tracks changes between content versions and generates detailed comparison report
 
 import difflib
 import json
-import os
-from pathlib import Path
 from datetime import datetime
-from typing import Dict, List, Tuple, Optional
-import re
+from pathlib import Path
+from typing import Dict, List, Optional, Tuple
 
 
 class ChangeTracker:
@@ -305,7 +303,7 @@ class ChangeTracker:
 
                 # Add sample changes if available
                 if "unified_diff" in file_info and file_info["unified_diff"]:
-                    content += f"- **Sample changes:**\n"
+                    content += "- **Sample changes:**\n"
                     content += "  ```diff\n"
                     # Show first few diff lines
                     diff_lines = file_info["unified_diff"][:10]

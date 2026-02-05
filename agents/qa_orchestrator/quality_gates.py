@@ -4,10 +4,10 @@ Quality Gates System
 Manages quality thresholds, decision logic, and escalation rules for the QA pipeline.
 """
 
-from typing import Dict, List, Optional, Tuple
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
+from typing import Dict, List, Optional, Tuple
 
 
 class QualityGateResult(Enum):

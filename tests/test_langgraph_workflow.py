@@ -25,7 +25,7 @@ from agents.qa_orchestrator.quality_gates import (  # noqa: E402
     QualityGateManager,
     QualityGateResult,
 )
-from agents.qa_orchestrator.pipeline_types import AgentResult, AgentType, WorkflowStage  # noqa: E402
+from agents.qa_orchestrator.pipeline_types import AgentResult, AgentType  # noqa: E402
 
 
 # ---------------------------------------------------------------------------
