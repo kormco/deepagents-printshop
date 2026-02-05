@@ -9,6 +9,7 @@ RUN apt-get update && apt-get install -y \
     texlive-fonts-recommended \
     texlive-latex-extra \
     texlive-science \
+    texlive-publishers \
     ghostscript \
     imagemagick \
     poppler-utils \

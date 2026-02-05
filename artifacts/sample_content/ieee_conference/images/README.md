@@ -2,38 +2,42 @@
 
 All figures for this paper should be generated as **inline TikZ/pgfplots** during LaTeX compilation. Do NOT use pre-rendered image files.
 
-## Figure 1: FedEdge System Architecture
+## Figure 1: PrintShop Pipeline Architecture
 - **Placement**: System Design section
 - **Type**: TikZ block diagram
-- **Content**: Show aggregation server at top, three device clusters below (Cluster A: Orin Nano, Cluster B: Xavier NX, Cluster C: RPi 5 + Hailo), with arrows indicating model broadcast (downward) and gradient upload (upward). Label each cluster with its converged pruning ratio (0.15, 0.38, 0.62). Show production lines beneath each cluster.
+- **Content**: Show three pipeline stages (Content Editor, LaTeX Specialist, Visual QA) as rounded rectangles connected by arrows. Between each pair of stages, place a diamond-shaped quality gate node labeled with the threshold score (80, 85, 80). Include feedback arrows from each gate back to its preceding stage labeled "iterate". Input node (Markdown + Config) on the left, output node (PDF + Report) on the right.
 - **Width**: Full column width (`\columnwidth`)
-- **Libraries**: `shapes.geometric`, `arrows.meta`, `positioning`, `fit`
+- **Libraries**: `shapes.geometric`, `arrows.meta`, `positioning`
 
-## Figure 2: Convergence Curves
-- **Placement**: Results and Discussion section
-- **Type**: pgfplots line chart
-- **Content**: Accuracy (%) vs. Communication Round (0–100) for all methods: Centralized (dashed horizontal at 97.8%), FedEdge (96.3%), FedProx (94.7%), FedAvg (94.1%), PruneFL (94.2%), Local-Only (88.4%). Use distinct colors and a legend.
-- **Width**: Full column width (`\columnwidth`)
-- **Data points**: See convergence data below
-
-### Convergence Data
-```
-Round, FedEdge, FedAvg, FedProx, PruneFL, Local-Only
-0,     52.3,   51.2,   51.8,    50.5,    50.0
-10,    78.1,   71.9,   73.5,    72.4,    64.2
-20,    88.9,   82.5,   84.1,    83.0,    73.5
-30,    93.1,   88.0,   89.5,    88.2,    79.4
-40,    94.9,   90.9,   92.1,    91.0,    83.2
-50,    95.6,   92.4,   93.4,    92.5,    85.6
-60,    95.9,   93.1,   94.0,    93.3,    86.9
-70,    96.1,   93.6,   94.3,    93.7,    87.6
-80,    96.2,   93.8,   94.5,    94.0,    88.0
-90,    96.3,   94.0,   94.6,    94.1,    88.2
-100,   96.3,   94.1,   94.7,    94.2,    88.4
-```
-
-## Figure 3: Per-Cluster Latency Comparison (Optional)
+## Figure 2: Formatting Accuracy by Content Type
 - **Placement**: Results and Discussion section
 - **Type**: pgfplots grouped bar chart
-- **Content**: Inference latency (ms) per cluster for FedEdge vs FedAvg vs PruneFL. Include a horizontal dashed line at 40 ms marking the latency target.
+- **Content**: Formatting accuracy (%) per content type (Research Report, Conference Paper, Magazine Article, Technical Manual, Thesis) for three methods (PrintShop, Single-Pass LLM, Template-Only). Use distinct colors per method with a legend.
 - **Width**: Full column width (`\columnwidth`)
+- **Data points**:
+```
+Content Type,    PrintShop, Single-Pass LLM, Template-Only
+Research Report, 95.4,      72.5,            65.2
+Conference Paper,96.8,      82.1,            71.8
+Magazine Article,90.3,      54.7,            48.1
+Technical Manual,93.1,      66.3,            59.4
+Thesis,          94.2,      70.8,            62.5
+```
+
+## Figure 3: Revision Cycle Convergence
+- **Placement**: Results and Discussion section
+- **Type**: pgfplots line chart
+- **Content**: Formatting accuracy (%) vs. quality gate threshold (60–95) for PrintShop (increasing curve with diminishing returns), Single-Pass LLM (flat line at 68.1%), and Template-Only (flat line at 61.4%). Shows that PrintShop's iterative approach benefits from higher thresholds up to a point.
+- **Width**: Full column width (`\columnwidth`)
+- **Data points**:
+```
+Threshold, PrintShop, Single-Pass LLM, Template-Only
+60,        85.2,      68.1,            61.4
+65,        87.8,      68.1,            61.4
+70,        89.9,      68.1,            61.4
+75,        91.6,      68.1,            61.4
+80,        93.4,      68.1,            61.4
+85,        94.7,      68.1,            61.4
+90,        95.1,      68.1,            61.4
+95,        95.3,      68.1,            61.4
+```

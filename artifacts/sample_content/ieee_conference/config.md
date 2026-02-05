@@ -14,25 +14,25 @@ Do not cite this document as a factual source.
 ieee_conference
 
 ## Project Metadata
-- Title: FedEdge: Latency-Aware Federated Learning for Real-Time Defect Detection in Smart Manufacturing
+- Title: PrintShop: A Multi-Agent Pipeline for Automated Professional Document Generation with Visual Quality Assurance
 - Authors:
-  - Name: J. Chen
-    Affiliation: Department of Computer Science, Eastfield Institute of Technology, Portland, OR, USA
-    Email: jchen@eit.edu
-  - Name: R. Vasquez
-    Affiliation: Department of Industrial Engineering, Eastfield Institute of Technology, Portland, OR, USA
-    Email: rvasquez@eit.edu
-  - Name: M. Okonkwo
-    Affiliation: Applied AI Lab, Northgate Systems Research, Austin, TX, USA
-    Email: mokonkwo@northgatesys.com
-- Conference: 2026 IEEE International Conference on Industrial Informatics (INDIN)
-- Funding: This work was supported in part by the National Science Foundation under Grant No. 2055123.
+  - Name: A. Morgan
+    Affiliation: Department of Computer Science, Westbrook University, Denver, CO, USA
+    Email: amorgan@westbrook.edu
+  - Name: S. Patel
+    Affiliation: Applied AI Research Group, Cascadia Labs, Seattle, WA, USA
+    Email: spatel@cascadialabs.ai
+  - Name: L. Torres
+    Affiliation: Department of Information Systems, Westbrook University, Denver, CO, USA
+    Email: ltorres@westbrook.edu
+- Conference: 2026 IEEE International Conference on Software Engineering and Applications (ICSEA)
+- Funding: This work was supported in part by the National Science Foundation under Grant No. 2241097.
 
 ## Abstract
-Federated learning (FL) enables collaborative model training across distributed edge devices without centralizing sensitive manufacturing data. However, existing FL frameworks struggle with the strict latency requirements of real-time defect detection on resource-constrained edge hardware. We present FedEdge, a latency-aware federated learning framework that co-optimizes model accuracy and inference latency through adaptive model pruning and heterogeneity-aware aggregation. FedEdge introduces a dynamic pruning scheduler that tailors per-device model complexity based on available compute budgets, and a weighted aggregation strategy that accounts for statistical and hardware heterogeneity across factory-floor nodes. We evaluate FedEdge on a distributed testbed of 24 edge devices processing visual inspection data from three simulated production lines. Results show that FedEdge achieves 96.3% defect detection accuracy while reducing average inference latency by 41% compared to standard FedAvg, and maintains convergence within 5% of centralized training baselines. Our framework demonstrates that production-grade federated learning is viable for latency-critical manufacturing applications.
+Producing professionally typeset documents from structured content remains a labor-intensive process that demands expertise in both subject matter and typesetting systems such as LaTeX. We present PrintShop, a multi-agent pipeline orchestrated by a LangGraph state graph that automates the end-to-end transformation of markdown manuscripts into publication-ready PDFs. The pipeline comprises three quality-gated stages — content editing, LaTeX generation, and visual quality assurance — each driven by large language models and governed by configurable score thresholds. The visual QA stage compiles the document, renders pages as images, and uses a vision-language model to detect and correct formatting defects in a closed feedback loop. We evaluate PrintShop on a benchmark of 120 documents spanning five content types (research report, conference paper, magazine article, technical manual, and thesis). PrintShop achieves 94.7% first-pass formatting accuracy and a 99.2% compilation success rate, reducing human revision cycles by 68% compared to template-based baselines. Ablation experiments confirm that the visual QA feedback loop accounts for the largest share of quality improvement.
 
 ## Keywords
-federated learning, edge computing, smart manufacturing, defect detection, model pruning, industrial IoT
+document generation, multi-agent systems, large language models, LaTeX, visual quality assurance, LangGraph
 
 ## Content Manifest
 1. Introduction: introduction.md

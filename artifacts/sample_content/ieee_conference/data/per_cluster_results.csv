@@ -1,4 +1,6 @@
-Cluster,Device,Pruning Ratio,Accuracy (%),Latency (ms)
-A,Jetson Orin Nano,0.15,97.1 +/- 0.3,26.4 +/- 1.2
-B,Jetson Xavier NX,0.38,96.5 +/- 0.4,35.8 +/- 1.8
-C,RPi 5 + Hailo-8L,0.62,94.8 +/- 0.6,39.1 +/- 2.4
+Content Type,PrintShop (%),Single-Pass LLM (%),Template-Only (%)
+Research Report,95.4 +/- 1.0,72.5 +/- 2.6,65.2 +/- 3.4
+Conference Paper,96.8 +/- 0.8,82.1 +/- 2.1,71.8 +/- 2.9
+Magazine Article,90.3 +/- 2.1,54.7 +/- 4.3,48.1 +/- 3.8
+Technical Manual,93.1 +/- 1.5,66.3 +/- 3.0,59.4 +/- 3.2
+Thesis,94.2 +/- 1.3,70.8 +/- 2.7,62.5 +/- 3.5
