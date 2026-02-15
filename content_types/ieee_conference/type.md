@@ -21,10 +21,10 @@ The `conference` option produces the standard two-column IEEE conference format.
 ### Title and Author Block
 - Use `\title{}` for the paper title. Do NOT use special characters, footnotes, or math in the title.
 - Use `\author{}` with `\IEEEauthorblockN{}` for author names and `\IEEEauthorblockA{}` for affiliations (department, university/organization, city, country, email).
-- Multiple author groups can be arranged side-by-side using `\and`.
+- **CRITICAL: Each author MUST be separated by `\and`**. Place `\and` on its own line between each author's `\IEEEauthorblockA{}` closing brace and the next author's `\IEEEauthorblockN{}`. Without `\and`, authors will run together on the same line (email of one author merging into the name of the next). Every paper with 2+ authors MUST use `\and` between each pair.
 - Funding acknowledgments go in `\thanks{}` within the first author block.
 
-Example:
+Example (note `\and` between each author — this is mandatory):
 ```latex
 \author{
   \IEEEauthorblockN{First Author}
@@ -42,6 +42,25 @@ Example:
     City, Country \\
     email2@example.org
   }
+  \and
+  \IEEEauthorblockN{Third Author}
+  \IEEEauthorblockA{
+    \textit{Department of Mathematics} \\
+    \textit{Third University} \\
+    City, Country \\
+    email3@example.org
+  }
+}
+```
+
+**Do NOT** write the author block like this (missing `\and` — causes emails to merge into next author name):
+```latex
+% WRONG — authors will run together on one line
+\author{
+  \IEEEauthorblockN{First Author}
+  \IEEEauthorblockA{...email@example.org}
+  \IEEEauthorblockN{Second Author}  % NO! Missing \and before this
+  \IEEEauthorblockA{...}
 }
 ```
 
