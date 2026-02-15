@@ -249,7 +249,7 @@ def enrich_for_iteration_node(state: Dict[str, Any]) -> Dict[str, Any]:
                 issues = r.get("issues_found", [])
                 issues_str = "; ".join(issues[:3]) if issues else "none"
                 results_summary.append(f"  {agent}: score={score}, issues=[{issues_str}]")
-            prompt_parts.append(f"\n## Recent Agent Results\n" + "\n".join(results_summary))
+            prompt_parts.append("\n## Recent Agent Results\n" + "\n".join(results_summary))
 
         # Include any existing context notes
         for key in ["content_editor_notes", "latex_specialist_notes", "compilation_errors"]:

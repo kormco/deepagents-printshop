@@ -7,17 +7,15 @@ import sys
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 # Ensure project root is importable
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from agents.qa_orchestrator.context_enrichment import (
+    _format_dict,
+    _summarize_quality_evaluations,
     enrich_for_iteration_node,
     enrich_for_latex_node,
     enrich_for_visual_qa_node,
-    _format_dict,
-    _summarize_quality_evaluations,
 )
 
 
