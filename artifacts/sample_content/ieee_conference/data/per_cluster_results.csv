@@ -1,4 +1,4 @@
-Content Type,PrintShop (%),Single-Pass LLM (%),Template-Only (%)
+Content Type,PrintShop Accuracy (%),Single-Pass Accuracy (%),Template Accuracy (%)
 Research Report,95.4 +/- 1.0,72.5 +/- 2.6,65.2 +/- 3.4
 Conference Paper,96.8 +/- 0.8,82.1 +/- 2.1,71.8 +/- 2.9
 Magazine Article,90.3 +/- 2.1,54.7 +/- 4.3,48.1 +/- 3.8

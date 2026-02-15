@@ -150,12 +150,13 @@ class ContentReviewer:
 
         return max(0, min(100, score))
 
-    def review_text(self, text: str) -> Dict:
+    def review_text(self, text: str, enriched_context: str = "") -> Dict:
         """
         Review and improve text content with pattern learning.
 
         Args:
             text: Original text content
+            enriched_context: Orchestrator-generated iteration strategy guidance
 
         Returns:
             Dict with improved content and analysis
@@ -194,6 +195,15 @@ IMPORTANT: Apply the historical patterns above to improve this document. Look sp
 
 ## AGENT MEMORY
 {self.agent_memory_context}"""
+
+        # Add orchestrator enriched context (iteration strategy) if available
+        if enriched_context:
+            prompt += f"""
+
+## ORCHESTRATOR GUIDANCE
+{enriched_context}
+
+IMPORTANT: Follow the orchestrator guidance above to prioritize specific improvements in this iteration."""
 
         prompt += f"""
 

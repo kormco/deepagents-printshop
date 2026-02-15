@@ -90,7 +90,8 @@ class LaTeXOptimizer:
                          content: str,
                          markdown_content: Dict[str, str],
                          optimization_level: str = 'moderate',
-                         pattern_context: str = "") -> Dict:
+                         pattern_context: str = "",
+                         enriched_context: str = "") -> Dict:
         """
         Optimize LaTeX document comprehensively.
 
@@ -105,6 +106,7 @@ class LaTeXOptimizer:
         """
         print(f"🔧 Starting LaTeX optimization (level: {optimization_level})")
         self._current_pattern_context = pattern_context
+        self._current_enriched_context = enriched_context
 
         # If we have markdown content, convert to LaTeX first
         has_type_preamble = False
@@ -506,6 +508,11 @@ class LaTeXOptimizer:
         pattern_ctx = getattr(self, '_current_pattern_context', '')
         if pattern_ctx:
             system_parts.append(f"\n\n## HISTORICAL PATTERNS\nApply these learnings from previous documents:\n\n{pattern_ctx}")
+
+        # Inject orchestrator guidance from enrichment node
+        enriched_ctx = getattr(self, '_current_enriched_context', '')
+        if enriched_ctx:
+            system_parts.append(f"\n\n## ORCHESTRATOR GUIDANCE\n{enriched_ctx}")
 
         system_prompt = "\n".join(system_parts)
 
@@ -1107,7 +1114,7 @@ class LaTeXOptimizer:
             # Replace \\hline with booktabs rules
             if re.search(r'\\hline', optimized):
                 # This is a simplified replacement - in practice, you'd want more sophisticated logic
-                optimized = re.sub(r'\\hline', '\\midrule', optimized)
+                optimized = re.sub(r'\\hline', r'\\midrule', optimized)
                 optimizations.append('Replaced \\hline with professional booktabs rules')
 
             # Add array package for better column types
@@ -1150,7 +1157,7 @@ class LaTeXOptimizer:
 
             if poor_placements:
                 # Replace poor placements with better options
-                optimized = re.sub(r'\\begin\{figure\}\[h\]', '\\begin{figure}[htbp]', optimized)
+                optimized = re.sub(r'\\begin\{figure\}\[h\]', r'\\begin{figure}[htbp]', optimized)
                 optimizations.append('Improved figure placement options')
 
         return optimized, optimizations

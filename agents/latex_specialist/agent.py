@@ -229,7 +229,8 @@ Data 4 & Data 5 & Data 6 \\\\
     def optimize_latex_content(self,
                               content: str,
                               markdown_content: Optional[Dict[str, str]] = None,
-                              optimization_level: str = 'moderate') -> Dict:
+                              optimization_level: str = 'moderate',
+                              enriched_context: str = "") -> Dict:
         """
         Optimize LaTeX content for professional quality.
 
@@ -237,6 +238,7 @@ Data 4 & Data 5 & Data 6 \\\\
             content: Original LaTeX content (if any)
             markdown_content: Markdown content to convert and optimize
             optimization_level: Level of optimization to apply
+            enriched_context: Orchestrator-generated guidance from enrichment node
 
         Returns:
             Optimization results
@@ -257,13 +259,15 @@ Data 4 & Data 5 & Data 6 \\\\
             content=content,
             markdown_content=markdown_content,
             optimization_level=optimization_level,
-            pattern_context=pattern_context
+            pattern_context=pattern_context,
+            enriched_context=enriched_context,
         )
 
     def process_with_versioning(self,
                                parent_version: str = "v1_content_edited",
                                target_version: str = "v2_latex_optimized",
-                               optimization_level: str = 'moderate') -> Dict:
+                               optimization_level: str = 'moderate',
+                               enriched_context: str = "") -> Dict:
         """
         Process content with full LaTeX optimization and version management.
 
@@ -294,7 +298,8 @@ Data 4 & Data 5 & Data 6 \\\\
         optimization_result = self.optimize_latex_content(
             content=parent_latex_content,
             markdown_content=parent_content_dict,
-            optimization_level=optimization_level
+            optimization_level=optimization_level,
+            enriched_context=enriched_context,
         )
 
         optimized_latex = optimization_result['optimized_content']

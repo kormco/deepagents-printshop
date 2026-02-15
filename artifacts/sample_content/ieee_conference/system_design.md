@@ -10,31 +10,31 @@ PrintShop is implemented as a LangGraph StateGraph with three sequential stages 
 caption: PrintShop pipeline architecture. Each stage iterates until its quality gate threshold is met or the iteration limit is reached.
 label: fig:architecture
 code:
-\tikzstyle{stage} = [rectangle, draw=black, fill=blue!15, text width=2.8cm, minimum height=1.2cm, text centered, font=\small\bfseries, rounded corners=3pt]
-\tikzstyle{gate} = [diamond, draw=black, fill=orange!20, text width=1.4cm, minimum height=1cm, text centered, font=\scriptsize, aspect=1.5]
-\tikzstyle{io} = [rectangle, draw=black, fill=green!10, text width=2cm, minimum height=0.8cm, text centered, font=\small, rounded corners=3pt]
+\tikzstyle{stage} = [rectangle, draw=black, fill=blue!15, text width=2.2cm, minimum height=0.7cm, text centered, font=\footnotesize\bfseries, rounded corners=2pt]
+\tikzstyle{gate} = [diamond, draw=black, fill=orange!20, aspect=2.5, font=\footnotesize, inner sep=1pt]
+\tikzstyle{io} = [rectangle, draw=black, fill=green!10, text width=1.8cm, minimum height=0.6cm, text centered, font=\footnotesize, rounded corners=2pt]
 \tikzstyle{arrow} = [->, >=stealth, thick]
 
-\node[io] (input) at (0,0) {Markdown + Config};
-\node[stage] (ce) at (3.2,0) {Content\\Editor};
-\node[gate] (g1) at (6,0) {Score\\$\geq 80$?};
-\node[stage] (ls) at (8.8,0) {LaTeX\\Specialist};
-\node[gate] (g2) at (11.6,0) {Score\\$\geq 85$?};
-\node[stage] (vqa) at (14.4,0) {Visual\\QA};
-\node[gate] (g3) at (17.2,0) {Score\\$\geq 80$?};
-\node[io] (output) at (20,0) {PDF +\\Report};
+\node[io] (input) at (0,0) {Markdown};
+\node[stage] (ce) at (0,-1.2) {Content Editor};
+\node[gate] (g1) at (0,-2.4) {$\geq$80};
+\node[stage] (ls) at (0,-3.6) {LaTeX Specialist};
+\node[gate] (g2) at (0,-4.8) {$\geq$85};
+\node[stage] (vqa) at (0,-6.0) {Visual QA};
+\node[gate] (g3) at (0,-7.2) {$\geq$80};
+\node[io] (output) at (0,-8.4) {PDF};
 
 \draw[arrow] (input) -- (ce);
 \draw[arrow] (ce) -- (g1);
-\draw[arrow] (g1) -- node[above, font=\scriptsize] {pass} (ls);
+\draw[arrow] (g1) -- (ls);
 \draw[arrow] (ls) -- (g2);
-\draw[arrow] (g2) -- node[above, font=\scriptsize] {pass} (vqa);
+\draw[arrow] (g2) -- (vqa);
 \draw[arrow] (vqa) -- (g3);
-\draw[arrow] (g3) -- node[above, font=\scriptsize] {pass} (output);
+\draw[arrow] (g3) -- (output);
 
-\draw[arrow] (g1.south) -- ++(0,-0.8) -| node[near start, below, font=\scriptsize] {iterate} (ce.south);
-\draw[arrow] (g2.south) -- ++(0,-0.8) -| node[near start, below, font=\scriptsize] {iterate} (ls.south);
-\draw[arrow] (g3.south) -- ++(0,-0.8) -| node[near start, below, font=\scriptsize] {iterate} (vqa.south);
+\draw[arrow, dashed] (g1.east) -- ++(0.8,0) |- node[near start, right, font=\scriptsize] {iterate} (ce.east);
+\draw[arrow, dashed] (g2.east) -- ++(0.8,0) |- node[near start, right, font=\scriptsize] {iterate} (ls.east);
+\draw[arrow, dashed] (g3.east) -- ++(0.8,0) |- node[near start, right, font=\scriptsize] {iterate} (vqa.east);
 -->
 
 The pipeline processes documents through three stages in sequence. Each stage produces versioned artifacts stored in a structured output directory, enabling traceability and rollback.

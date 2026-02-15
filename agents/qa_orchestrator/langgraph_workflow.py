@@ -274,6 +274,12 @@ def content_review_node(state: PipelineState) -> Dict[str, Any]:
 
     start_time = datetime.now()
 
+    # Read enriched iteration strategy on subsequent iterations
+    enriched_context = ""
+    if iteration > 0:
+        agent_ctx = state.get("agent_context", {})
+        enriched_context = agent_ctx.get("enriched_iteration_strategy", "")
+
     try:
         from agents.content_editor.versioned_agent import VersionedContentEditorAgent
         from tools.version_manager import VersionManager
@@ -299,6 +305,7 @@ def content_review_node(state: PipelineState) -> Dict[str, Any]:
             results = agent.process_content_with_versioning(
                 target_version=target_version,
                 parent_version=input_version,
+                enriched_context=enriched_context,
             )
 
             processing_time = (datetime.now() - start_time).total_seconds()
@@ -369,6 +376,9 @@ def latex_optimization_node(state: PipelineState) -> Dict[str, Any]:
         optimization_level = "conservative"
         print("   [LangGraph] LaTeX node: upstream flagged complex tables — using conservative optimization")
 
+    # Read enriched context from upstream enrichment node
+    enriched_context = agent_ctx.get("enriched_latex_instructions", "")
+
     start_time = datetime.now()
 
     try:
@@ -398,6 +408,7 @@ def latex_optimization_node(state: PipelineState) -> Dict[str, Any]:
                 parent_version=input_version,
                 target_version=target_version,
                 optimization_level=optimization_level,
+                enriched_context=enriched_context,
             )
 
             processing_time = (datetime.now() - start_time).total_seconds()
@@ -555,11 +566,17 @@ def visual_qa_node(state: PipelineState) -> Dict[str, Any]:
         max_iterations = 3
         print("   [LangGraph] Visual QA node: weak typography score — allowing extra iteration")
 
+    # Read enriched context from upstream enrichment node
+    enriched_context = agent_ctx.get("enriched_visual_qa_instructions", "")
+
     try:
         sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "visual_qa"))
         from agent import VisualQAFeedbackAgent
 
-        visual_qa_feedback = VisualQAFeedbackAgent(content_source=content_source)
+        visual_qa_feedback = VisualQAFeedbackAgent(
+            content_source=content_source,
+            enriched_context=enriched_context,
+        )
 
         if os.path.exists(pdf_path):
             final_pdf, improvements, final_version = visual_qa_feedback.analyze_and_improve(
@@ -688,7 +705,7 @@ def escalation_node(state: PipelineState) -> Dict[str, Any]:
 # Conditional edge functions
 # ---------------------------------------------------------------------------
 
-def route_after_content_review(state: PipelineState) -> Literal["latex_optimization", "iteration", "escalation"]:
+def route_after_content_review(state: PipelineState) -> Literal["enrich_for_latex", "iteration", "escalation"]:
     """Decide next step after content review using quality gate."""
     coordinator = WorkflowCoordinator(
         content_source=state.get("content_source", "research_report")
@@ -699,7 +716,7 @@ def route_after_content_review(state: PipelineState) -> Literal["latex_optimizat
     print(f"   [LangGraph] Content quality gate: {evaluation.result.value} (score={evaluation.score})")
 
     if evaluation.result == QualityGateResult.PASS:
-        return "latex_optimization"
+        return "enrich_for_latex"
     elif evaluation.result == QualityGateResult.ITERATE:
         if state.get("iterations_completed", 0) >= coordinator.quality_gate_manager.thresholds.max_iterations:
             return "escalation"
@@ -708,7 +725,7 @@ def route_after_content_review(state: PipelineState) -> Literal["latex_optimizat
         return "escalation"
 
 
-def route_after_latex_optimization(state: PipelineState) -> Literal["visual_qa", "iteration", "escalation"]:
+def route_after_latex_optimization(state: PipelineState) -> Literal["enrich_for_visual_qa", "iteration", "escalation"]:
     """Decide next step after LaTeX optimization using quality gate."""
     coordinator = WorkflowCoordinator(
         content_source=state.get("content_source", "research_report")
@@ -719,7 +736,7 @@ def route_after_latex_optimization(state: PipelineState) -> Literal["visual_qa",
     print(f"   [LangGraph] LaTeX quality gate: {evaluation.result.value} (score={evaluation.score})")
 
     if evaluation.result == QualityGateResult.PASS:
-        return "visual_qa"
+        return "enrich_for_visual_qa"
     elif evaluation.result == QualityGateResult.ITERATE:
         if state.get("iterations_completed", 0) >= coordinator.quality_gate_manager.thresholds.max_iterations:
             return "escalation"
@@ -753,9 +770,15 @@ def route_after_quality_assessment(state: PipelineState) -> Literal["completion"
 
 def build_qa_graph() -> StateGraph:
     """Build the QA pipeline StateGraph (uncompiled)."""
+    from agents.qa_orchestrator.context_enrichment import (
+        enrich_for_iteration_node,
+        enrich_for_latex_node,
+        enrich_for_visual_qa_node,
+    )
+
     graph = StateGraph(PipelineState)
 
-    # Add nodes
+    # Add processing nodes
     graph.add_node("content_review", content_review_node)
     graph.add_node("latex_optimization", latex_optimization_node)
     graph.add_node("visual_qa", visual_qa_node)
@@ -764,13 +787,21 @@ def build_qa_graph() -> StateGraph:
     graph.add_node("completion", completion_node)
     graph.add_node("escalation", escalation_node)
 
+    # Add enrichment nodes
+    graph.add_node("enrich_for_latex", enrich_for_latex_node)
+    graph.add_node("enrich_for_visual_qa", enrich_for_visual_qa_node)
+    graph.add_node("enrich_for_iteration", enrich_for_iteration_node)
+
     # Edges
     graph.add_edge(START, "content_review")
     graph.add_conditional_edges("content_review", route_after_content_review)
+    graph.add_edge("enrich_for_latex", "latex_optimization")
     graph.add_conditional_edges("latex_optimization", route_after_latex_optimization)
+    graph.add_edge("enrich_for_visual_qa", "visual_qa")
     graph.add_edge("visual_qa", "quality_assessment")
     graph.add_conditional_edges("quality_assessment", route_after_quality_assessment)
-    graph.add_edge("iteration", "content_review")
+    graph.add_edge("iteration", "enrich_for_iteration")
+    graph.add_edge("enrich_for_iteration", "content_review")
     graph.add_edge("completion", END)
     graph.add_edge("escalation", END)
 
