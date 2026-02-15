@@ -47,22 +47,29 @@ The QA pipeline is orchestrated as a **LangGraph StateGraph** with conditional e
 ```mermaid
 graph TD
     START --> content_review
-    content_review -->|score >= 80| latex_optimization
+    content_review -->|score >= 80| enrich_for_latex
     content_review -->|score < 80| iteration
     content_review -->|max iterations| escalation
-    latex_optimization -->|score >= 85| visual_qa
+    enrich_for_latex --> latex_optimization
+    latex_optimization -->|score >= 85| enrich_for_visual_qa
     latex_optimization -->|score < 85| iteration
     latex_optimization -->|max iterations| escalation
+    enrich_for_visual_qa --> visual_qa
     visual_qa --> quality_assessment
     quality_assessment -->|score >= 80| completion
     quality_assessment -->|score < 80| iteration
     quality_assessment -->|max iterations| escalation
-    iteration --> content_review
+    iteration --> enrich_for_iteration
+    enrich_for_iteration --> content_review
     completion --> END
     escalation --> END
+
+    style enrich_for_latex fill:#e8f4f8,stroke:#5ba4cf
+    style enrich_for_visual_qa fill:#e8f4f8,stroke:#5ba4cf
+    style enrich_for_iteration fill:#e8f4f8,stroke:#5ba4cf
 ```
 
-Inter-agent communication flows through a shared `agent_context` dict — each node can read upstream notes and write downstream context for smarter decision-making.
+**Context enrichment nodes** (blue) sit between processing stages. Each uses a lightweight LLM call (Haiku) to synthesize upstream results, pattern memory, and content type constraints into targeted instructions for the downstream agent. Inter-agent communication flows through a shared `agent_context` dict.
 
 ## Recommended: Run with Claude Code
 
@@ -139,8 +146,11 @@ By using this software, you acknowledge these risks and agree to conduct appropr
 | Node | Agent | Tools Used | LLM Calls |
 |------|-------|------------|-----------|
 | **ContentReview** | ContentEditorAgent | `ContentReviewer`, `VersionManager`, `ChangeTracker` | Claude Sonnet (grammar/readability analysis) |
+| **EnrichForLatex** | — | `PatternInjector`, `ContentTypeLoader` | Claude Haiku (context synthesis) |
 | **LaTeXOptimization** | LaTeXSpecialistAgent | `LaTeXAnalyzer`, `LaTeXOptimizer`, `LLMLaTeXGenerator`, `PDFCompiler` | Claude Sonnet (LaTeX generation, syntax fixing, self-correction) |
+| **EnrichForVisualQA** | — | `PatternInjector`, `ContentTypeLoader` | Claude Haiku (context synthesis) |
 | **VisualQA** | VisualQAFeedbackAgent | `PDFToImageConverter`, `VisualValidator`, `MultimodalLLMAnalyzer`, `LLMLaTeXGenerator`, `PDFCompiler` | Claude Haiku Vision (page analysis), Claude Sonnet (fix generation) |
+| **EnrichForIteration** | — | `PatternInjector` | Claude Haiku (iteration strategy) |
 
 ### Quality Gates (Conditional Edges)
 
@@ -416,6 +426,7 @@ deepagents-printshop/
 │   │   └── latex_optimizer.py    # Typography optimization, TikZ/CSV/image processing
 │   ├── qa_orchestrator/          # Multi-agent workflow coordination
 │   │   ├── agent.py              # Main orchestrator entry point
+│   │   ├── context_enrichment.py # LLM context enrichment between stages
 │   │   ├── langgraph_workflow.py # LangGraph StateGraph pipeline
 │   │   ├── quality_gates.py      # Pass/iterate/escalate logic
 │   │   └── workflow_coordinator.py
@@ -498,6 +509,8 @@ python agents/qa_orchestrator/agent.py
      - Compilation attempted
      - If errors → LLM analyzes and re-generates
      - Repeat until successful or max attempts
+
+Between each stage, a **Context Enrichment** node (Claude Haiku) synthesizes upstream results, pattern memory, and content type constraints into targeted instructions for the next agent.
 
 4. **Quality Gates**
    - Validates each stage meets thresholds
