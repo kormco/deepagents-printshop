@@ -126,78 +126,83 @@ A 6-page IEEE conference paper with:
 
 ## Stage 3: Visual QA
 
-The Visual QA agent compiled the LaTeX to PDF, rendered all 6 pages as images, and used Claude's vision to inspect the output. It ran 2 iterations, applying targeted LaTeX fixes after each inspection.
+The Visual QA agent compiled the LaTeX to PDF, rendered all 6 pages as images, and used Claude's vision to inspect the output. It ran 2 iterations, applying targeted LaTeX fixes after each inspection. The changes cascaded across multiple pages, improving diagram rendering, chart readability, and reference density.
 
-### Iteration 1 — Spacing and Layout Fixes
+### Fix 1: TikZ Pipeline Diagram
 
-The agent identified header/spacing issues and applied fixes to improve the overall layout:
-
-```latex
-% Visual QA Fixes
-```
-
-+14 lines added (99.54% similarity). Fixes targeted column spacing and element positioning.
-
-**Score after iteration 1:** 85.0/100
-
-### Iteration 2 — Diagram and Table Refinement
-
-The second inspection focused on TikZ diagram spacing and table formatting:
+The vision model flagged the pipeline architecture diagram (Fig. 1) as cramped with inadequate node spacing. Iteration 1 set oversized TikZ defaults (`minimum height=1.2cm`), which the vision model then flagged as too large. Iteration 2 refined the style to a `flowchart` preset with smaller nodes (`0.8cm`) that fit the two-column layout.
 
 ```latex
-% Visual QA Fixes
+% Iteration 1: Initial TikZ sizing (too large)
+\tikzset{
+    every node/.style={minimum height=1.2cm, minimum width=2cm},
+    node distance=1.5cm and 2cm
+}
+
+% Iteration 2: Refined flowchart style
+\tikzset{
+    flowchart/.style={
+        node distance=1.5cm and 2cm,
+        every node/.style={minimum height=0.8cm, minimum width=2cm}
+    }
+}
 ```
 
-+21 lines added (99.3% similarity). Fixes improved diagram node spacing and table readability.
+**Before** (v2, pre-Visual QA) — Fig. 1 diagram cramped into text; page 3 is text-only with no visible diagram:
 
-**Score after iteration 2:** 79.0/100
+![Before: No diagram visible on page 3](before_diagram.png)
 
-The score dropped slightly on the final assessment as the vision model flagged additional minor issues (reference formatting density, chart label overlap) that weren't present in the intermediate check.
+**After** (iteration 2) — Fig. 1 pipeline flowchart clearly rendered with Markdown → Content Editor → LaTeX Specialist → Visual QA → PDF boxes and iteration arrows:
 
-### Version Diffs
+![After: Pipeline diagram clearly visible](after_diagram.png)
 
-**v2 → v3_iter1:** +14 lines, 99.54% similarity
-**v3_iter1 → v3_iter2:** +21 lines, 99.30% similarity
+### Fix 2: Chart Legend Positioning
 
----
+The convergence behavior line plot (Fig. 2) and content-type accuracy bar chart (Fig. 3) had default legend placement that overlapped data points. Iteration 2 added custom pgfplots legend styling and paragraph spacing adjustments.
 
-## Final Output: 6-Page IEEE Conference Paper
+```latex
+% Iteration 2: Legend and spacing fixes
+\pgfplotsset{
+    legend style={
+        at={(0.02,0.98)},
+        anchor=north west,
+        font=\footnotesize,
+        cells={anchor=west},
+        inner sep=3pt
+    }
+}
+\setlength{\parskip}{0.3em plus 0.1em minus 0.05em}
+\addtolength{\topmargin}{-1.5pt}
+```
 
-### Title Page (page 1)
+**Before** (v2, pre-Visual QA) — charts with default legend positioning; conclusion and references start lower on the page:
 
-Standard IEEE title page with centered paper title, three-author block with affiliations and emails, disclaimer box, abstract, index terms, and the beginning of Section I (Introduction). Two-column layout with IEEE-standard margins and fonts.
+![Before: Charts with default legend placement](before_charts.png)
 
-![Title page](title_page.png)
+**After** (iteration 2) — legends repositioned to top-left with smaller font; ablation table, charts, conclusion, and references all fit with better flow:
 
-### Related Work & System Design (page 2)
+![After: Charts with improved legend positioning](after_charts.png)
 
-Continuation of Introduction, full Related Work section (II) covering template-based generation, LLM writing assistants, multi-agent systems, and document quality assurance. Beginning of System Design (III) with pipeline overview.
+### Fix 3: References Page Consolidation
 
-![Related work and system design](related_work.png)
+The spacing and margin adjustments cascaded through the document, pulling content upward. The references page went from showing only 8 references with over 50% whitespace to fitting all 18 remaining references with balanced density.
 
-### System Design & Experimental Setup (page 3)
+**Before** (v2, pre-Visual QA) — references [13]–[20] only, with large empty space below:
 
-TikZ pipeline architecture diagram (Fig. 1) showing the three-stage flow with quality gates. Detailed descriptions of each pipeline stage. Experimental setup (IV) with document benchmark description and 5 content types.
+![Before: Sparse references page](before_references.png)
 
-![System design with TikZ diagram](system_design.png)
+**After** (iteration 2) — references [3]–[20] fit on the final page with appropriate density:
 
-### Results & Discussion (page 4)
+![After: Consolidated references page](after_references.png)
 
-Three `booktabs` tables: Table I (overall performance comparison across 4 methods), Table II (formatting accuracy by content type), and the beginning of the ablation study. Dense two-column layout with statistical results.
+### Iteration Summary
 
-![Results with data tables](results.png)
+| Iteration | Lines Added | Key Changes | Score |
+|-----------|------------|-------------|-------|
+| 1 | +14 | Header height, table row/column spacing, TikZ node defaults | 85.0 |
+| 2 | +21 | Flowchart style refinement, pgfplots legend, paragraph spacing, top margin | 79.0 |
 
-### Ablation, Charts & Conclusion (page 5)
-
-Table III (ablation study results). Two pgfplots figures: convergence behavior line plot (Fig. 2) and content-type accuracy grouped bar chart (Fig. 3). Section VI Conclusion summarizing the 94.7% accuracy result. Beginning of References.
-
-![Ablation study and charts](ablation_charts.png)
-
-### References (page 6)
-
-20 IEEE-formatted numbered references spanning conference proceedings, journal articles, arXiv preprints, and online documentation. Standard IEEE bibliography formatting with proper citation style.
-
-![References page](references.png)
+The score dropped on the final assessment as the vision model flagged additional minor issues (reference formatting density, chart label overlap at small sizes) that weren't present in the intermediate check. These are cosmetic refinements rather than formatting defects.
 
 ---
 

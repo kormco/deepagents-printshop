@@ -2,7 +2,7 @@
 
 This document walks through a complete QA pipeline run that produced the [sample magazine PDF](../../deepagents-printshop-SAMPLE-magazine.pdf). It shows what each agent changed at every stage, with screenshots of the typeset output.
 
-**Pipeline run:** `726947eb` | **Duration:** 1,458 seconds | **Final score:** 88.9/100
+**Pipeline run:** `5a9c49ad` | **Duration:** ~1,400 seconds | **Final score:** 87.7/100
 
 ## Pipeline Overview
 
@@ -12,7 +12,7 @@ The QA orchestrator runs three agent stages in sequence. Each stage loops until 
 |-------|-------|-----------|------------|------|
 | 1 | Content Editor | 1 | 86.1 | 80 |
 | 2 | LaTeX Specialist | 1 | 96 | 85 |
-| 3 | Visual QA | 2 | 84.7 | 80 |
+| 3 | Visual QA | 2 | 81.0 | 80 |
 
 **Version lineage:** `v0_original` → `v1_content_edited` → `v2_latex_optimized` → `v3_visual_qa_iter1` → `v3_visual_qa_iter2`
 
@@ -142,112 +142,71 @@ The 4-point typography deduction came from minor spacing patterns in the LaTeX s
 
 ## Stage 3: Visual QA
 
-The Visual QA agent compiled the LaTeX to PDF, rendered all 25 pages as images, and used Claude's vision to inspect the output for formatting problems. It ran 2 iterations, applying targeted LaTeX fixes after each inspection.
+The Visual QA agent compiled the LaTeX to PDF, rendered all 20 pages as images, and used Claude's vision to inspect the output. It ran 2 iterations, applying targeted LaTeX fixes after each inspection. The most significant change was wrapping 11 data tables with `\resizebox` to fix column overflow — a common issue in two-column magazine layouts with wide tables.
 
-### Iteration 1 — Header Height and Spacing
+### Fix 1: Table Column Fitting and Row Spacing
 
-The agent's first inspection identified a `\headheight` warning from `fancyhdr` and spacing inconsistencies. It applied these fixes:
-
-```latex
-% Visual QA Fixes
-\setlength{\headheight}{14.5pt}
-\setlength{\textheight}{\dimexpr\textheight-1pt\relax}
-\setlength{\footskip}{30pt}
-```
-
-These resolved the LaTeX compilation warning and standardized vertical spacing across all 25 pages.
-
-**Score after iteration 1:** 85.9/100
-
-### Iteration 2 — Table Formatting
-
-The second inspection focused on table readability. The agent added `\arraystretch` to increase row spacing in all data tables:
+The vision model flagged multiple tables as overflowing their column boundaries. Iteration 1 wrapped all 11 `booktabs` tables with `\resizebox{\columnwidth}{!}` to scale them to fit, and added global row/column spacing improvements:
 
 ```latex
-% Visual QA Fixes
-\renewcommand{\arraystretch}{1.3}
+% Visual QA Fixes — Iteration 1
+\renewcommand{\arraystretch}{1.3}    % 30% more row spacing
+\setlength{\tabcolsep}{8pt}         % Wider column padding
+\setlength{\parskip}{0.6em plus 0.15em minus 0.1em}  % Paragraph spacing
+\setlength{\headheight}{14.5pt}     % Fix fancyhdr warning
+
+% Applied to all 11 tables:
+\resizebox{\columnwidth}{!}{\begin{tabular}...}
 ```
 
-This improved the visual density of the 6 data tables throughout the document, particularly the framework comparison tables on pages 15 and 19–20.
+**Before** (v2, pre-Visual QA) — Performance Benchmarks page with 3 tables crammed together; tight row spacing makes data hard to scan:
 
-**Score after iteration 2:** 84.7/100
+![Before: Cramped tables with tight rows](before_tables.png)
 
-The score dipped slightly because the increased row spacing triggered a minor formatting concern from the vision model, but the visual quality of the tables improved.
+**After** (iteration 2) — Same tables with `\resizebox` column fitting and `\arraystretch{1.3}` row spacing; each table has clear breathing room between rows:
 
-### Version Diffs
+![After: Tables with improved row spacing and column fit](after_tables.png)
 
-**v2 → v3_iter1:** +10 lines, 99.79% similarity (header/spacing fixes)
-**v3_iter1 → v3_iter2:** +11 lines, 99.53% similarity (table row spacing)
+### Fix 2: Data Table Readability
 
----
+The MCP Adoption Trajectory and Quality Gate Thresholds tables also benefited from the `\resizebox` wrapping and increased `\arraystretch`. Row heights increased by 30%, making numerical data significantly easier to scan.
 
-## Final Output: 25-Page Magazine
+**Before** (v2, pre-Visual QA) — MCP adoption and quality threshold tables with compact rows:
 
-### Cover (page 1)
+![Before: Dense data tables](before_data_tables.png)
 
-Full-bleed cover with the "DEEP AGENTS" masthead, hero skyscraper photograph, six article callout boxes, cover story headline "THE YEAR OF THE AGENT", and the required fictional-content disclaimer.
+**After** (iteration 2) — Same tables with generous row spacing and proper column fitting:
 
-![Cover page](cover.png)
+![After: Readable data tables with spacing](after_data_tables.png)
 
-### Table of Contents (page 2)
+### Fix 3: Caption Spacing Refinement
 
-Custom-designed contents page with large teal page numbers, article titles in bold, and subtitles in gray. Lists all 8 sections spanning pages 4–30. Footer shows publication metadata.
+Iteration 2 replaced the global paragraph spacing with targeted caption spacing, giving figures and tables more room above and below their captions without adding excess space to body text:
 
-![Table of Contents](toc.png)
+```latex
+% Iteration 2: Replaced \parskip with caption-specific spacing
+\setlength{\abovecaptionskip}{8pt}   % Space above captions
+\setlength{\belowcaptionskip}{12pt}  % Space below captions
+```
 
-### Editor's Letter (page 3)
+This refined the text flow — the document went from 23 pages (after iteration 1's aggressive paragraph spacing) down to 22 pages.
 
-Two-column layout with drop cap opening, embedded office photograph with caption, and bold-highlighted statistics ($52 billion by 2030, 1,445% surge in multi-agent inquiries).
+**Before** (v2, pre-Visual QA) — Claude Code article page with tight paragraph spacing:
 
-![Editor's Letter](editors_letter.png)
+![Before: Tight paragraph spacing](before_spacing.png)
 
-### Hero Image Spread (page 6)
+**After** (iteration 2) — Same content with balanced caption spacing; text flows more naturally:
 
-Full-width hero image — robot and human fist-bump — marking the transition from the cover story to the feature articles.
+![After: Balanced spacing](after_spacing.png)
 
-![Hero image spread](hero_image.png)
+### Iteration Summary
 
-### Enterprise Adoption Table (page 7)
+| Iteration | Lines Changed | Key Changes | Page Count | Score |
+|-----------|--------------|-------------|-----------|-------|
+| 1 | +30 | Table `\resizebox`, `\arraystretch{1.3}`, `\tabcolsep`, `\parskip`, `\headheight` | 20 → 23 | 80.8 |
+| 2 | +2 / -1 | Replaced `\parskip` with `\abovecaptionskip` + `\belowcaptionskip` | 23 → 22 | 79.1 |
 
-`booktabs`-formatted table showing enterprise deployment data (Uber, JP Morgan, Cisco, Salesforce) with use cases and operational scale. Clean column alignment with proper `\toprule`/`\midrule`/`\bottomrule` rules.
-
-![Enterprise adoption table](enterprise_table.png)
-
-### Industry Analysis (page 11)
-
-Section opener for "Who's Using Deep Agents" with teal category label, drop cap, two-column layout covering Uber's code review system, JPMorgan's document processing, and Cisco's network automation.
-
-![Industry analysis](industry_analysis.png)
-
-### Framework Comparison (page 15)
-
-Colored `tcolorbox` table comparing LangGraph, LangChain, CrewAI, and OpenAI Swarm across latency, token efficiency, and production status. Contrasts with the prose analysis of MCP integration.
-
-![Framework comparison table](framework_comparison.png)
-
-### Performance Benchmarks (page 19)
-
-Data-dense page with two `booktabs` tables: agent framework performance comparison (5 frameworks × 5 metrics) and multi-agent architecture analysis (4 patterns × 3 metrics). Source attribution below each table.
-
-![Performance benchmarks](performance_benchmarks.png)
-
-### Data Tables (page 20)
-
-Continuation of the data section with LLM performance in agentic workflows (5 models × 4 metrics including cost) and MCP adoption trajectory (quarterly SDK downloads, integrations, enterprise adopters from Q4 2024 through Q4 2025).
-
-![Data tables](data_tables.png)
-
-### Closing Page (page 24)
-
-Final article page with ocean photograph, "Looking Ahead" callout box with timeline projections (Q2 2026 through 2030), editorial team credits, and copyright notice.
-
-![Closing page](closing_page.png)
-
-### Back Cover (page 25)
-
-Dark navy background with "The Future of AI is Autonomous" tagline, subscription call-to-action, next-issue preview (March 2026), barcode with "ISSUE 01 | $9.99 US", and PrintShop attribution.
-
-![Back cover](back_cover.png)
+Final assessment scored **81.0/100** after the vision model re-evaluated the complete document.
 
 ---
 
@@ -257,8 +216,8 @@ Dark navy background with "The Future of AI is Autonomous" tagline, subscription
 |--------|-------|
 | Content Quality | 86/100 |
 | LaTeX Quality | 96/100 |
-| Visual QA | 84.7/100 |
-| **Overall** | **88.9/100** |
+| Visual QA | 81/100 |
+| **Overall** | **87.7/100** |
 
 ### Visual QA Issues (from final assessment)
 
@@ -275,12 +234,12 @@ These are style preferences rather than formatting defects — the magazine inte
 
 | Agent | Iterations | Processing Time | Versions Created |
 |-------|-----------|----------------|-----------------|
-| Content Editor | 1 | 189.8s | v1_content_edited |
-| LaTeX Specialist | 1 | 258.8s | v2_latex_optimized |
-| Visual QA | 2 | ~1,010s | v3_visual_qa_iter1, v3_visual_qa_iter2 |
+| Content Editor | 1 | 187.4s | v1_content_edited |
+| LaTeX Specialist | 1 | 264.7s | v2_latex_optimized |
+| Visual QA | 2 | ~922s | v3_visual_qa_iter1, v3_visual_qa_iter2 |
 
-Total: 449 seconds of agent processing across 4 executions. Pipeline overhead (compilation, rendering, scoring, enrichment) accounted for the remaining ~1,009 seconds.
+Total: 452 seconds of agent processing across 4 executions. Pipeline overhead (compilation, rendering, scoring, enrichment) accounted for the remaining ~922 seconds.
 
 ### Pipeline Outcome
 
-**Status: Escalated** — The overall score of 88.9 exceeded the 80-point quality target but fell below the 90-point human-handoff threshold. The pipeline escalated for human review rather than auto-approving. This is the expected outcome for a first-generation magazine layout: the document meets professional standards but has cosmetic items a human editor would want to review before final publication.
+**Status: Escalated** — The overall score of 87.7 exceeded the 80-point quality target but fell below the 90-point human-handoff threshold. The pipeline escalated for human review rather than auto-approving. This is the expected outcome for a first-generation magazine layout: the document meets professional standards but has cosmetic items a human editor would want to review before final publication.
