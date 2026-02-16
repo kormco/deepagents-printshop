@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "deepagents-printshop"
-version = "0.1.1"
+version = "0.2.0"
 description = "Multi-agent LaTeX document generation with LangGraph QA pipeline"
 readme = "README.md"
 license = "Apache-2.0"
