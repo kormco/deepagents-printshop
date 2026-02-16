@@ -98,25 +98,42 @@ This project is designed to work seamlessly with **[Claude Code](https://claude.
 
 Simply open this project in Claude Code and ask it to "run the magazine pipeline" or "generate a research report" - it will handle the rest.
 
-### Practical Example: Publishing Your Own Content
+### Practical Example 1: Generating a Document from an Existing Content Type
 
-Instead of just running the sample documents, you can use Claude Code to publish your own research or content:
+If a content type already exists (e.g., `ieee_conference`, `research_report`, `magazine`), you just need sample content and the pipeline handles the rest.
 
 **Example prompt:**
-> "I have research notes about machine learning model evaluation in my `~/research/ml_evaluation/` folder. Create a new PrintShop content source from these files and generate a professional PDF report."
+> "I have a draft paper about distributed caching in `~/papers/caching_draft/`. It has an intro, methods, results, and some CSV benchmark data. Create a PrintShop content source for it using the IEEE conference format and generate a PDF."
 
 Claude Code will:
 1. Read your source files and understand the content structure
-2. Create `artifacts/sample_content/ml_evaluation/` with properly organized content
-3. Generate a `config.md` with appropriate metadata and content manifest
-4. Convert your notes into structured markdown sections
-5. Import any data tables as CSV files
-6. Run the full QA pipeline to generate a polished PDF
+2. Create `artifacts/sample_content/caching_paper/` with a `config.md` pointing to `ieee_conference` as the content type
+3. Organize your draft into markdown sections matching the IEEE structure (Introduction, Related Work, etc.)
+4. Import benchmark data as CSV files with `<!-- CSV_TABLE: -->` references
+5. Run the full QA pipeline — content editing, LaTeX generation guided by the IEEE `type.md` instructions, and visual QA to catch formatting issues in the rendered PDF
 
-**Other practical prompts:**
-- "Convert my thesis draft into a properly formatted research report"
-- "Take these meeting notes and create a professional magazine-style newsletter"
-- "Format my API documentation into a technical report with code examples"
+### Practical Example 2: Creating a New Content Type from Reference Material
+
+If you need a document format that doesn't exist yet, you can create a new content type from templates, PDFs, or style guides.
+
+**Example prompt:**
+> "I need to produce documents in our company's internal report format. Here's the Word template (`~/templates/acme_report.docx`), a sample PDF (`~/templates/sample_report.pdf`), and the style guide (`~/templates/acme_style_guide.pdf`). Create a new PrintShop content type from these references."
+
+Claude Code will:
+1. Analyze the template, sample PDF, and style guide to extract formatting rules (margins, fonts, heading styles, header/footer layout, logo placement)
+2. Create `content_types/acme_report/type.md` with rendering instructions derived from the reference material — document class, required packages, typography rules, float placement, citation style
+3. Add a "Packages to AVOID" section for any packages that conflict with the chosen document class
+4. Include structure rules and common mistakes specific to the format
+5. Test the new content type by generating a sample document and running it through the pipeline
+
+**What goes into a `type.md`:**
+- Type metadata (document class, font size, paper size)
+- Detailed rendering instructions in natural language — the LaTeX agent reads these fresh every run
+- Required LaTeX packages and preamble configuration
+- Structure rules and constraints
+- Common formatting mistakes to avoid
+
+Once the content type exists, any future document using that format requires zero additional setup — just point `config.md` at the content type and run the pipeline.
 
 ## Important Notice
 
