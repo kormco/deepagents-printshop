@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "deepagents-printshop"
-version = "0.2.0"
+version = "0.2.1"
 description = "Multi-agent LaTeX document generation with LangGraph QA pipeline"
 readme = "README.md"
 license = "Apache-2.0"
@@ -58,9 +58,14 @@ packages = ["agents", "tools"]
 [tool.hatch.build.targets.sdist]
 exclude = [
     "*.pdf",
+    "*.png",
+    "*.jpg",
+    "*.jpeg",
     "artifacts/output/",
     "artifacts/reviewed_content/",
     "artifacts/agent_reports/",
+    "artifacts/sample_content/*/images/",
+    "docs/",
     "dist/",
 ]
 
