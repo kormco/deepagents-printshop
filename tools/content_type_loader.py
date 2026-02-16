@@ -22,6 +22,7 @@ class ContentTypeDefinition:
     document_class: str         # Extracted for DocumentConfig
     default_font_size: str      # Extracted for DocumentConfig
     default_paper_size: str     # Extracted for DocumentConfig
+    default_class_options: str = ""  # Extra documentclass options (e.g., "conference")
 
     @property
     def rendering_instructions(self) -> str:
@@ -49,6 +50,33 @@ class ContentTypeDefinition:
             return []
         section_text = section_match.group(1)
         return re.findall(r'```latex\s*\n(.*?)```', section_text, re.DOTALL)
+
+    @property
+    def packages_to_avoid(self) -> List[str]:
+        """Extract package names from the 'Packages to AVOID' section."""
+        if not self.type_md_content:
+            return []
+        match = re.search(
+            r'### Packages to AVOID\s*\n(.*?)(?=\n###|\n## |\Z)',
+            self.type_md_content,
+            re.DOTALL
+        )
+        if not match:
+            return []
+        # Parse "- `package_name`" lines — only extract backtick-quoted names
+        # BEFORE any parenthetical explanation to avoid false positives
+        packages = []
+        for line in match.group(1).split('\n'):
+            stripped = line.strip()
+            if stripped.startswith('- '):
+                # Strip the "- " prefix, then take only the part before "("
+                entry = stripped[2:]
+                paren_pos = entry.find('(')
+                if paren_pos != -1:
+                    entry = entry[:paren_pos]
+                found = re.findall(r'`(\w+)`', entry)
+                packages.extend(found)
+        return packages
 
     @property
     def structure_rules(self) -> str:
@@ -117,6 +145,7 @@ class ContentTypeLoader:
             document_class=metadata.get("document_class", "article"),
             default_font_size=metadata.get("default_font_size", "12pt"),
             default_paper_size=metadata.get("default_paper_size", "letterpaper"),
+            default_class_options=metadata.get("default_class_options", ""),
         )
 
     def list_types(self) -> List[str]:

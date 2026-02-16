@@ -283,6 +283,16 @@ Analyze this content page for visual quality. Score these elements (1-10):
 - Example: "Abbreviate 'Formatting Accuracy (%)' to 'Format Acc. (%)'"
 - The fix should be a SOURCE CONTENT change (edit the CSV headers), not just LaTeX formatting
 
+**CRITICAL CHECK - Float Collision/Overlap:**
+⚠️ For pages with multiple tables or figures:
+- Do any two tables or figures overlap, collide, or run into each other?
+- Is there missing or insufficient vertical space between consecutive floats?
+- Does the bottom of one table/figure touch or overlap the top (caption) of the next?
+- Are floats stacked so tightly that captions or content are obscured?
+- If float collision detected, REPORT: "FLOAT_COLLISION: [specific description, e.g., 'Table I overlaps Table II']"
+- Suggest fixes: "Add \\FloatBarrier between tables", "Change float placement from [!t] to [htbp]", "Add \\vspace between consecutive floats"
+- This is a MAJOR formatting defect — score the page no higher than 5/10 if tables/figures overlap
+
 **CRITICAL CHECK - LaTeX Syntax Detection:**
 ⚠️ **RED FLAG**: Check if any LaTeX code or commands are visible in the rendered PDF (e.g., \\textbf{}, \\section{}, \\begin{}, \\usepackage{}, \\cite{}, \\ref{}, etc.).
 - If ANY LaTeX syntax is visible in the output, this is a CRITICAL FAILURE

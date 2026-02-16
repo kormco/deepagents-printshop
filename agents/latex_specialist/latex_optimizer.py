@@ -110,6 +110,7 @@ class LaTeXOptimizer:
 
         # If we have markdown content, convert to LaTeX first
         has_type_preamble = False
+        self._packages_to_avoid = []
         if markdown_content:
             latex_content = self._convert_markdown_to_latex(markdown_content)
             # Check if the content type provided its own preamble blocks
@@ -117,6 +118,8 @@ class LaTeXOptimizer:
             content_type = config_data.get('_content_type')
             if content_type and content_type.latex_preamble_blocks:
                 has_type_preamble = True
+            if content_type and hasattr(content_type, 'packages_to_avoid'):
+                self._packages_to_avoid = content_type.packages_to_avoid
         else:
             latex_content = content
 
@@ -209,6 +212,7 @@ class LaTeXOptimizer:
         config['_content_type'] = content_type
         config['_type_font_size'] = content_type.default_font_size
         config['_type_paper_size'] = content_type.default_paper_size
+        config['_type_class_options'] = content_type.default_class_options
 
         # Parse project metadata into top-level fields
         # _parse_config_section_simple already strips '- ' prefixes,
@@ -405,9 +409,10 @@ class LaTeXOptimizer:
             assembled_content, config_data, rendering_instructions, preamble, structure_rules
         )
 
-        # Fix common LLM errors: typos and unclosed environments
+        # Fix common LLM errors: typos, unclosed environments, orphaned commands
         body = self._fix_common_llm_typos(body)
         body = self._close_unclosed_environments(body)
+        body = self._fix_orphaned_thanks(body)
 
         # Assemble final document
         document = preamble + "\n\n\\begin{document}\n\n" + body + "\n\n\\end{document}\n"
@@ -419,11 +424,15 @@ class LaTeXOptimizer:
         doc_class = config_data.get('document class', 'article')
         font_size = config_data.get('_type_font_size', '12pt')
         paper_size = config_data.get('_type_paper_size', 'letterpaper')
+        class_options = config_data.get('_type_class_options', '')
         doc_options = config_data.get('document options', {})
         font_size = doc_options.get('font_size', font_size)
         paper_size = doc_options.get('paper_size', paper_size)
 
-        documentclass_line = f"\\documentclass[{font_size},{paper_size}]{{{doc_class}}}"
+        # Build documentclass options list: class_options (e.g. "conference"), font_size, paper_size
+        options_parts = [opt for opt in [class_options, font_size, paper_size] if opt]
+        options_str = ",".join(options_parts)
+        documentclass_line = f"\\documentclass[{options_str}]{{{doc_class}}}"
         preamble_lines = [documentclass_line]
         print(f"   [LaTeX] Preamble documentclass: {documentclass_line}")
 
@@ -661,6 +670,55 @@ class LaTeXOptimizer:
                     tex_content = tex_content.rstrip() + f"\n\\end{{{env}}}\n"
 
         return tex_content
+
+    def _fix_orphaned_thanks(self, body: str) -> str:
+        """Move orphaned \\thanks{} commands inside the \\author{} block.
+
+        LLMs sometimes place \\thanks{} after the closing brace of \\author{},
+        which causes a blank first page in IEEEtran conference mode.
+        This method detects that pattern and moves \\thanks inside \\author{}.
+        """
+        # Find \author{ and use brace counting to locate its closing }
+        author_match = re.search(r'\\author\{', body)
+        if not author_match:
+            return body
+
+        # Count braces to find the matching } for \author{
+        start = author_match.end()  # position right after \author{
+        depth = 1
+        pos = start
+        while pos < len(body) and depth > 0:
+            if body[pos] == '{':
+                depth += 1
+            elif body[pos] == '}':
+                depth -= 1
+            pos += 1
+
+        if depth != 0:
+            return body  # unbalanced braces, bail out
+
+        author_close_pos = pos - 1  # position of the closing }
+
+        # Check for \thanks{...} between the author closing } and \maketitle
+        after_author = body[author_close_pos + 1:]
+        thanks_match = re.match(r'\s*(\\thanks\{[^}]*\})\s*(\\maketitle)', after_author)
+        if not thanks_match:
+            return body
+
+        thanks_cmd = thanks_match.group(1)
+        # Remove the orphaned \thanks from its current position
+        after_fixed = after_author[thanks_match.start(1):].replace(thanks_cmd, '', 1)
+
+        # Insert \thanks just before the closing } of \author
+        body = (
+            body[:author_close_pos]
+            + '\n' + thanks_cmd + '\n'
+            + body[author_close_pos:author_close_pos + 1]  # the closing }
+            + after_fixed
+        )
+        print("[FIX] Fixed orphaned \\thanks{} -- moved inside \\author{} block")
+
+        return body
 
     def _sanitize_unicode_for_latex(self, text: str) -> str:
         """Replace common Unicode characters with LaTeX equivalents for pdflatex compatibility."""
@@ -1098,13 +1156,14 @@ class LaTeXOptimizer:
         """Optimize table formatting."""
         optimizations = []
         optimized = content
+        blacklist = getattr(self, '_packages_to_avoid', [])
 
         # Check if document has tables
         has_tables = re.search(r'\\begin\{tabular\}|\\begin\{table\}', optimized)
 
         if has_tables:
             # Add booktabs package
-            if not re.search(r'\\usepackage.*\{booktabs\}', optimized):
+            if 'booktabs' not in blacklist and not re.search(r'\\usepackage.*\{booktabs\}', optimized):
                 class_match = re.search(r'(\\documentclass.*\n)', optimized)
                 if class_match:
                     insert_pos = class_match.end()
@@ -1118,7 +1177,7 @@ class LaTeXOptimizer:
                 optimizations.append('Replaced \\hline with professional booktabs rules')
 
             # Add array package for better column types
-            if not re.search(r'\\usepackage.*\{array\}', optimized):
+            if 'array' not in blacklist and not re.search(r'\\usepackage.*\{array\}', optimized):
                 class_match = re.search(r'(\\documentclass.*\n)', optimized)
                 if class_match:
                     insert_pos = class_match.end()
@@ -1136,12 +1195,15 @@ class LaTeXOptimizer:
         has_figures = re.search(r'\\includegraphics|\\begin\{figure\}', optimized)
 
         if has_figures:
-            # Essential figure packages
+            # Essential figure packages (filtered by content type's packages_to_avoid blacklist)
+            blacklist = getattr(self, '_packages_to_avoid', [])
             figure_packages = [
                 ('graphicx', '\\usepackage{graphicx}'),
                 ('float', '\\usepackage{float}'),
                 ('caption', '\\usepackage{caption}')
             ]
+            figure_packages = [(name, line) for name, line in figure_packages
+                               if name not in blacklist]
 
             for package_name, package_line in figure_packages:
                 if not re.search(f'\\\\usepackage.*{{{package_name}}}', optimized):

@@ -115,8 +115,18 @@ class VisualQAFeedbackAgent:
                 "keywords": ["table_overflow", "table overflow", "column width", "truncated", "cut off", "extends beyond", "abbreviate"],
                 "latex_fixes": [
                     "% Table headers need abbreviation - LLM will suggest specific changes",
+                    "% Abbreviate long headers: 'Accuracy' -> 'Acc.', 'Processing' -> 'Proc.', etc.",
                     "% Consider using \\resizebox{\\columnwidth}{!}{...} as fallback",
                     "% For two-column: switch to table* for full-width if content cannot be condensed"
+                ]
+            },
+            "float_collision": {
+                "keywords": ["float_collision", "float collision", "tables overlap", "table overlap", "runs into", "collide", "collision", "floats overlap", "stacked"],
+                "latex_fixes": [
+                    "% Add \\usepackage{placeins} and \\FloatBarrier between consecutive floats",
+                    "% Change float placement: [!t] -> [htbp] for non-critical tables",
+                    "% Add \\vspace{1em} after \\end{table} before next float",
+                    "% Ensure adequate text between consecutive table/figure environments"
                 ]
             }
         }
@@ -292,6 +302,8 @@ class VisualQAFeedbackAgent:
             return 3
         elif any(word in issue_lower for word in ["diagram_spacing", "cramped", "too close", "overlapping"]):
             return 3  # Diagram spacing is high priority
+        elif any(word in issue_lower for word in ["float_collision", "tables overlap", "runs into", "collide"]):
+            return 3  # Float collision is high priority
         elif any(word in issue_lower for word in ["improve", "enhance", "better"]):
             return 2
         elif any(word in issue_lower for word in ["slightly", "minor", "small"]):
