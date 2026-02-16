@@ -55,8 +55,20 @@ class TestGraphCompilation:
             "iteration",
             "completion",
             "escalation",
+            "enrich_for_latex",
+            "enrich_for_visual_qa",
+            "enrich_for_iteration",
         ]:
             assert node in mermaid, f"Node '{node}' missing from Mermaid diagram"
+
+    def test_graph_has_10_nodes(self):
+        """Graph should have 10 nodes (7 processing + 3 enrichment)."""
+        graph = build_qa_graph()
+        compiled = graph.compile()
+        node_names = set(compiled.get_graph().nodes.keys())
+        # LangGraph adds __start__ and __end__ pseudo-nodes
+        real_nodes = node_names - {"__start__", "__end__"}
+        assert len(real_nodes) == 10, f"Expected 10 nodes, got {len(real_nodes)}: {real_nodes}"
 
 
 # ---------------------------------------------------------------------------
@@ -66,7 +78,7 @@ class TestGraphCompilation:
 class TestRouting:
     @patch("agents.qa_orchestrator.langgraph_workflow.WorkflowCoordinator")
     def test_route_content_pass(self, MockCoordinator):
-        """Score 85 routes to latex_optimization."""
+        """Score 85 routes to enrich_for_latex."""
         mock_coord = MagicMock()
         mock_coord.assess_workflow_quality.return_value = QualityAssessment(content_score=85, content_issues=[])
         mock_coord.quality_gate_manager.evaluate_content_quality_gate.return_value = QualityGateEvaluation(
@@ -89,7 +101,7 @@ class TestRouting:
             "agent_context": {},
         }
         result = route_after_content_review(state)
-        assert result == "latex_optimization"
+        assert result == "enrich_for_latex"
 
     @patch("agents.qa_orchestrator.langgraph_workflow.WorkflowCoordinator")
     def test_route_content_iterate(self, MockCoordinator):
@@ -149,7 +161,7 @@ class TestRouting:
 
     @patch("agents.qa_orchestrator.langgraph_workflow.WorkflowCoordinator")
     def test_route_latex_pass(self, MockCoordinator):
-        """Score 90 routes to visual_qa."""
+        """Score 90 routes to enrich_for_visual_qa."""
         mock_coord = MagicMock()
         mock_coord.assess_workflow_quality.return_value = QualityAssessment(latex_score=90, latex_issues=[])
         mock_coord.quality_gate_manager.evaluate_latex_quality_gate.return_value = QualityGateEvaluation(
@@ -172,7 +184,7 @@ class TestRouting:
             "agent_context": {},
         }
         result = route_after_latex_optimization(state)
-        assert result == "visual_qa"
+        assert result == "enrich_for_visual_qa"
 
     @patch("agents.qa_orchestrator.langgraph_workflow.WorkflowCoordinator")
     def test_route_latex_iterate(self, MockCoordinator):

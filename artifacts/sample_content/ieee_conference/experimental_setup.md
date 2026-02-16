@@ -1,33 +1,34 @@
 # Experimental Setup
 
-## Testbed Configuration
+## Document Benchmark
 
-We evaluate FedEdge on a physical testbed comprising 24 edge devices organized into three production-line clusters of 8 devices each. The hardware configuration is intentionally heterogeneous to reflect real factory deployments:
+We evaluate PrintShop on a benchmark corpus of 120 documents spanning five content types, with 24 documents per type:
 
-- **Cluster A** (8 devices): NVIDIA Jetson Orin Nano (6-core ARM, 8 GB RAM, 1024-core GPU) — representing high-end edge nodes.
-- **Cluster B** (8 devices): NVIDIA Jetson Xavier NX (6-core ARM, 8 GB RAM, 384-core GPU) — representing mid-range edge nodes.
-- **Cluster C** (8 devices): Raspberry Pi 5 with Hailo-8L accelerator (4-core ARM, 8 GB RAM, 13 TOPS NPU) — representing lightweight edge nodes.
+- **Research report**: 8–15 page single-column documents with figures, tables, bibliography, and table of contents.
+- **Conference paper**: 6-page two-column IEEE-format papers with inline TikZ figures and numbered citations.
+- **Magazine article**: Multi-page layouts with pull quotes, sidebars, drop caps, and full-bleed images.
+- **Technical manual**: Structured documents with numbered sections, code listings, warning callouts, and cross-references.
+- **Thesis chapter**: Long-form academic documents with theorem environments, appendices, and multi-level headings.
 
-All devices are connected to the aggregation server over a local network with simulated bandwidth constraints of 100 Mbps per device.
+Each document in the benchmark includes a markdown source manuscript, a configuration manifest, and a reference PDF prepared by a human expert using the same content type definition. Source documents range from 2,000 to 12,000 words and contain between 2 and 8 inline reference directives (images, CSV tables, or TikZ diagrams).
 
-## Dataset
+## Evaluation Metrics
 
-We use the Simulated Manufacturing Visual Inspection (SMVI) dataset, a synthetic benchmark containing 180,000 labeled images across six defect categories (scratch, dent, crack, stain, misalignment, and no-defect). Images are 224x224 RGB captured at simulated inline inspection stations. The dataset is partitioned across clients using a Dirichlet distribution with concentration parameter $\beta = 0.5$ to create realistic non-IID splits, with each production line biased toward certain defect types.
+We assess pipeline performance using four metrics:
 
-## Model Architecture
-
-The backbone model is EfficientNet-B0 [17] pretrained on ImageNet, with the classification head replaced by a 7-class output layer (six defect types plus no-defect). The full model contains 5.3M parameters with an un-pruned inference latency of approximately 28 ms on Cluster A devices, 52 ms on Cluster B, and 85 ms on Cluster C.
+- **Formatting accuracy** (\%): Percentage of rendered pages with no formatting defects, as judged by a human evaluator using a standardized rubric covering margin compliance, figure placement, table formatting, heading hierarchy, and typographic consistency.
+- **Compilation success rate** (\%): Percentage of documents that compile to PDF without errors on the first pipeline run.
+- **Average revision cycles**: Mean number of human revision passes required to bring the generated PDF to publication-ready quality, starting from the pipeline output.
+- **Processing time** (min): Wall-clock time from markdown input to final PDF output, measured on a system with an NVIDIA A100 GPU and 64 GB RAM.
 
 ## Baselines
 
-We compare FedEdge against the following baselines:
+We compare PrintShop against three baselines:
 
-- **Centralized**: Standard EfficientNet-B0 trained on the combined dataset on a single GPU (upper bound on accuracy).
-- **FedAvg** [4]: Standard federated averaging with uniform model across all devices.
-- **FedProx** [9]: FedAvg with proximal regularization ($\mu = 0.01$).
-- **PruneFL** [14]: Federated learning with static uniform pruning at 50% ratio.
-- **Local-Only**: Each device trains independently on its local data (no federation).
+- **Template-Only**: The markdown is converted to LaTeX using Pandoc with the appropriate document class template. No LLM processing or quality assurance is applied.
+- **Single-Pass LLM**: A single LLM call converts the markdown to LaTeX using the same content type definition and configuration manifest as PrintShop, but without iterative refinement or visual QA.
+- **Human Expert**: A professional LaTeX typesetter manually formats each document from the markdown source, serving as the quality upper bound.
 
-## Training Configuration
+## Configuration
 
-All federated methods run for 100 communication rounds with $E = 5$ local epochs per round, batch size 32, and SGD with learning rate 0.01 and momentum 0.9. FedEdge uses $\alpha = 0.05$, $\rho_{\min} = 0.1$, $\rho_{\max} = 0.7$, and a target latency of $\tau_i = 40$ ms for all devices. Top-$k$ sparsification uses $k = 10$. All experiments are repeated three times with different random seeds, and we report mean and standard deviation.
+All LLM calls use Claude 3.5 Sonnet with temperature 0.3. Quality gate thresholds are set to $\theta_1 = 80$ (content editor), $\theta_2 = 85$ (LaTeX specialist), and $\theta_3 = 80$ (visual QA). Maximum iterations per stage are $K_1 = 4$, $K_2 = 3$, and $K_3 = 3$. The visual QA stage uses Claude 3.5 Sonnet's vision capabilities for page inspection. All experiments are repeated three times with different random seeds, and we report mean and standard deviation.

@@ -156,8 +156,18 @@ class LaTeXAnalyzer:
         if hierarchy_issues:
             score -= min(10, len(hierarchy_issues) * 3)
 
-        # Check for title and author
-        if not re.search(r'\\title\{', content):
+        # Check for title and author.
+        # Some document types (magazines, posters, custom designs) use their own
+        # title mechanisms (e.g. TikZ mastheads, custom \newcommand wrappers)
+        # instead of \title{} / \maketitle.  Only penalize when there is no
+        # evidence of a custom title approach.
+        has_custom_title = bool(
+            re.search(r'\\newcommand\{\\masthead', content)
+            or re.search(r'\\newcommand\{\\.*[Tt]itle', content)
+            or re.search(r'\\fontsize\{[3-9][0-9]', content)  # large display text
+        )
+
+        if not re.search(r'\\title\{', content) and not has_custom_title:
             issues.append(LaTeXIssue(
                 severity='warning',
                 category='structure',
@@ -166,7 +176,7 @@ class LaTeXAnalyzer:
             ))
             score -= 3
 
-        if not re.search(r'\\author\{', content):
+        if not re.search(r'\\author\{', content) and not has_custom_title:
             issues.append(LaTeXIssue(
                 severity='suggestion',
                 category='structure',
@@ -200,8 +210,16 @@ class LaTeXAnalyzer:
         issues = []
         score = 25  # Start with full points
 
-        # Check for proper font encoding
-        if not re.search(r'\\usepackage\[[^]]*\]\{fontenc\}', content):
+        # Detect specialized document classes that handle encoding/typography
+        # internally (IEEEtran, ACM classes, LNCS, etc.)
+        doc_class_match = re.search(r'\\documentclass.*\{(\w+)\}', content)
+        doc_class = doc_class_match.group(1) if doc_class_match else ''
+        specialized_class = doc_class.lower() in (
+            'ieeetran', 'acmart', 'llncs', 'svjour3', 'elsarticle',
+        )
+
+        # Check for proper font encoding — skip for classes that handle it
+        if not specialized_class and not re.search(r'\\usepackage\[[^]]*\]\{fontenc\}', content):
             issues.append(LaTeXIssue(
                 severity='suggestion',
                 category='typography',
@@ -210,8 +228,8 @@ class LaTeXAnalyzer:
             ))
             score -= 2
 
-        # Check for input encoding
-        if not re.search(r'\\usepackage\[[^]]*\]\{inputenc\}', content):
+        # Check for input encoding — skip for specialized classes
+        if not specialized_class and not re.search(r'\\usepackage\[[^]]*\]\{inputenc\}', content):
             issues.append(LaTeXIssue(
                 severity='suggestion',
                 category='typography',
@@ -220,8 +238,9 @@ class LaTeXAnalyzer:
             ))
             score -= 2
 
-        # Check for microtype (better typography)
-        if not re.search(r'\\usepackage.*\{microtype\}', content):
+        # Check for microtype (better typography) — skip for classes where
+        # microtype can conflict (IEEEtran column handling, etc.)
+        if not specialized_class and not re.search(r'\\usepackage.*\{microtype\}', content):
             issues.append(LaTeXIssue(
                 severity='suggestion',
                 category='typography',
@@ -230,15 +249,26 @@ class LaTeXAnalyzer:
             ))
             score -= 1
 
-        # Check for proper spacing issues
+        # Check for spacing issues in prose text only.
+        # Strip out preamble (before \begin{document}), comments, and LaTeX
+        # command blocks (TikZ, tcolorbox, etc.) which legitimately contain
+        # unusual spacing that would cause false positives.
+        doc_start = content.find('\\begin{document}')
+        prose_content = content[doc_start:] if doc_start != -1 else content
+        # Remove comment lines
+        prose_lines = [line for line in prose_content.split('\n')
+                       if not line.strip().startswith('%')]
+        # Remove lines that are pure LaTeX commands (start with \)
+        prose_lines = [line for line in prose_lines
+                       if line.strip() and not re.match(r'^\s*\\', line)]
+        prose_text = '\n'.join(prose_lines)
+
         spacing_issues = [
-            (r'\s{2,}', 'Multiple consecutive spaces found'),
-            (r'[.!?]\w', 'Missing space after sentence ending'),
-            (r'\w[.!?][.!?]', 'Multiple consecutive punctuation marks'),
+            (r'[.!?][A-Za-z]', 'Missing space after sentence ending in prose'),
         ]
 
         for pattern, description in spacing_issues:
-            matches = list(re.finditer(pattern, content))
+            matches = list(re.finditer(pattern, prose_text))
             if matches:
                 issues.append(LaTeXIssue(
                     severity='warning',
@@ -363,9 +393,13 @@ class LaTeXAnalyzer:
         issues = []
         score = 25
 
-        # Check for deprecated commands
+        # Check for deprecated commands (use word boundary to avoid false
+        # positives like \bfseries matching \bf, \sffamily matching \sf, etc.)
         for cmd in self.deprecated_commands:
-            if cmd in content:
+            # Match the command only when NOT followed by a letter
+            # e.g. \bf{ or \bf\space or \bf at end of line — but not \bfseries
+            escaped = re.escape(cmd)
+            if re.search(escaped + r'(?![a-zA-Z])', content):
                 issues.append(LaTeXIssue(
                     severity='warning',
                     category='general',

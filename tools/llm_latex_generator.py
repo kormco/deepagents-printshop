@@ -448,6 +448,11 @@ Generate a small block of LaTeX commands that should be INSERTED just before \\b
                 latex_content[begin_doc_pos:]
             )
 
+            # Second pass: handle TABLE_OVERFLOW by wrapping tables with resizebox
+            table_overflow_issues = [i for i in issues if 'TABLE_OVERFLOW' in i.upper() or 'table' in i.lower() and 'overflow' in i.lower()]
+            if table_overflow_issues:
+                fixed_latex = self._wrap_tables_with_resizebox(fixed_latex)
+
             # Validate the result
             if fixed_latex.count('\\begin{') != fixed_latex.count('\\end{'):
                 print("❌ Fix created unmatched environments")
@@ -461,6 +466,43 @@ Generate a small block of LaTeX commands that should be INSERTED just before \\b
         except Exception as e:
             print(f"❌ Error applying Visual QA fixes: {e}")
             return latex_content, False, []
+
+    def _wrap_tables_with_resizebox(self, latex_content: str) -> str:
+        """
+        Wrap tables with resizebox to ensure they fit column width.
+        Only wraps tables that don't already have resizebox.
+        """
+        import re
+
+        # Pattern to find table environments with tabular inside
+        # Match \begin{table}...\begin{tabular}...\end{tabular}...\end{table}
+        table_pattern = r'(\\begin\{table\}(?:\[[^\]]*\])?\s*)(.*?)(\\begin\{tabular\})(.*?)(\\end\{tabular\})(.*?)(\\end\{table\})'
+
+        def wrap_table(match):
+            table_start = match.group(1)  # \begin{table}[htbp]
+            before_tabular = match.group(2)  # \centering, \caption, etc before tabular
+            tabular_start = match.group(3)  # \begin{tabular}
+            tabular_content = match.group(4)  # table content
+            tabular_end = match.group(5)  # \end{tabular}
+            after_tabular = match.group(6)  # content after tabular (caption if below)
+            table_end = match.group(7)  # \end{table}
+
+            # Check if already wrapped with resizebox
+            if 'resizebox' in before_tabular or 'resizebox' in match.group(0):
+                return match.group(0)
+
+            # Wrap the tabular with resizebox
+            wrapped_tabular = f"\\resizebox{{\\columnwidth}}{{!}}{{{tabular_start}{tabular_content}{tabular_end}}}"
+
+            return f"{table_start}{before_tabular}{wrapped_tabular}{after_tabular}{table_end}"
+
+        # Apply the wrapping (DOTALL to match across newlines)
+        wrapped_content = re.sub(table_pattern, wrap_table, latex_content, flags=re.DOTALL)
+
+        if wrapped_content != latex_content:
+            print("📐 Wrapped tables with \\resizebox for column fit")
+
+        return wrapped_content
 
     def complete_truncated_document(self, latex_content: str, max_attempts: int = 3) -> Tuple[str, bool]:
         """

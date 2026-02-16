@@ -62,11 +62,13 @@ Without a LaTeX distribution, the system can generate `.tex` files but cannot co
 
 ### Pipeline (LangGraph StateGraph)
 
-The QA orchestrator (`agents/qa_orchestrator/agent.py`) runs a LangGraph StateGraph with three stages, each gated by a quality threshold:
+The QA orchestrator (`agents/qa_orchestrator/agent.py`) runs a LangGraph StateGraph with three processing stages and three context enrichment nodes. Each processing stage is gated by a quality threshold:
 
 1. **Content Editor** (gate: 80) — Reviews markdown for grammar, academic tone, readability. Iterates up to 4 times.
 2. **LaTeX Specialist** (gate: 85) — Converts edited markdown to `.tex` using config manifest and content type instructions. Applies automated optimizations.
 3. **Visual QA** (gate: 80) — Compiles PDF, renders pages as images, uses Claude vision to find formatting issues, applies fixes. Iterates up to 3 times.
+
+Between each processing stage, a **context enrichment node** uses a lightweight LLM call (Haiku) to synthesize upstream results, pattern memory, and content type constraints into targeted instructions for the downstream agent. The flow is: `content_review → enrich_for_latex → latex_optimization → enrich_for_visual_qa → visual_qa → quality_assessment`. On iteration: `iteration → enrich_for_iteration → content_review`.
 
 Each stage creates versioned artifacts in `artifacts/reviewed_content/` (e.g., `v0_original`, `v1_content_edited`, `v2_latex_optimized`, `v3_visual_qa`). Pipeline reports are saved to `artifacts/agent_reports/`.
 
@@ -75,6 +77,8 @@ Each stage creates versioned artifacts in `artifacts/reviewed_content/` (e.g., `
 **agents/qa_orchestrator/agent.py**: Main pipeline entry point. Orchestrates the LangGraph workflow with quality gates and iteration limits.
 
 **agents/qa_orchestrator/langgraph_workflow.py**: LangGraph StateGraph definition with conditional edges for quality gate decisions.
+
+**agents/qa_orchestrator/context_enrichment.py**: Three enrichment node functions (`enrich_for_latex_node`, `enrich_for_visual_qa_node`, `enrich_for_iteration_node`) that use Claude Haiku to synthesize context between pipeline stages.
 
 **agents/content_editor/versioned_agent.py**: Content editing agent that reviews and improves markdown files using Claude. Scores content on grammar, readability (Flesch Reading Ease), and academic tone.
 

@@ -1,0 +1,80 @@
+name: Publish to PyPI
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install dependencies
+        run: pip install -e ".[dev]"
+      - name: Lint
+        run: ruff check .
+      - name: Test
+        run: pytest tests/ -v
+
+  publish:
+    needs: lint-and-test
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write  # for trusted publishing (PyPI OIDC)
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install build tools
+        run: pip install build twine
+
+      - name: Build package
+        run: python -m build
+
+      - name: Check package metadata
+        run: twine check dist/*
+
+      - name: Check wheel size
+        run: |
+          WHEEL=$(ls dist/*.whl)
+          SIZE=$(stat --format=%s "$WHEEL")
+          echo "Wheel size: $SIZE bytes ($(numfmt --to=iec $SIZE))"
+          if [ "$SIZE" -gt 1048576 ]; then
+            echo "ERROR: Wheel exceeds 1 MB — binary files may have leaked in"
+            unzip -l "$WHEEL" | tail -30
+            exit 1
+          fi
+
+      - name: Check sdist size
+        run: |
+          SDIST=$(ls dist/*.tar.gz)
+          SIZE=$(stat --format=%s "$SDIST")
+          echo "Sdist size: $SIZE bytes ($(numfmt --to=iec $SIZE))"
+          if [ "$SIZE" -gt 5242880 ]; then
+            echo "ERROR: Sdist exceeds 5 MB — sample content may have leaked in"
+            tar tzf "$SDIST" | grep -iE '\.(pdf|png|jpg)' || true
+            exit 1
+          fi
+
+      - name: Check no binaries in wheel
+        run: |
+          WHEEL=$(ls dist/*.whl)
+          BINARIES=$(unzip -l "$WHEEL" | grep -ciE '\.(pdf|png|jpg|jpeg|csv)' || true)
+          if [ "$BINARIES" -gt 0 ]; then
+            echo "ERROR: Found binary/data files in wheel:"
+            unzip -l "$WHEEL" | grep -iE '\.(pdf|png|jpg|jpeg|csv)'
+            exit 1
+          fi
+          echo "OK: no binary files in wheel"
+
+      - name: Publish to PyPI
+        env:
+          TWINE_USERNAME: __token__
+          TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
+        run: twine upload dist/*

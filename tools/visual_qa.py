@@ -3,6 +3,7 @@
 import base64
 import io
 import os
+import re
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
@@ -92,7 +93,8 @@ class PDFToImageConverter:
 class VisualValidator:
     """Basic visual validation using image analysis."""
 
-    def __init__(self):
+    def __init__(self, has_toc: bool = True):
+        self.has_toc = has_toc
         self.validation_rules = self._init_validation_rules()
 
     def _init_validation_rules(self) -> Dict:
@@ -116,10 +118,10 @@ class VisualValidator:
         }
 
     def detect_page_type(self, page_number: int, total_pages: int) -> str:
-        """Detect the type of page based on position."""
+        """Detect the type of page based on position and document config."""
         if page_number == 1:
             return 'title_page'
-        elif page_number == 2:
+        elif page_number == 2 and self.has_toc:
             return 'toc_page'
         else:
             return 'content_page'
@@ -259,6 +261,37 @@ Analyze this content page for visual quality. Score these elements (1-10):
 3. **Text Layout** (1-10): Are margins, spacing, and text flow appropriate?
 4. **Typography** (1-10): Are fonts consistent, readable, and properly sized?
 5. **Content Elements** (1-10): Are tables, figures, or other elements well-formatted?
+6. **Diagram Readability** (1-10): If diagrams/figures are present, are they well-spaced and easy to understand?
+
+**CRITICAL CHECK - Diagram/Figure Spacing:**
+⚠️ For any TikZ diagrams, flowcharts, or figures on the page:
+- Are elements (nodes, boxes, shapes) cramped or too close together?
+- Is there adequate whitespace between diagram elements?
+- Is text within diagram elements readable (not truncated or overlapping)?
+- Are connecting lines/arrows clear and not overlapping with nodes?
+- If elements appear cramped, REPORT: "DIAGRAM_SPACING: [description of spacing issue]"
+- Suggest specific fixes like "increase node spacing", "enlarge diagram scale", "add padding between elements"
+
+**CRITICAL CHECK - Table Overflow/Column Width:**
+⚠️ For any tables on the page:
+- Does any table extend beyond the column margins or page margins?
+- Are table headers or cell contents cut off, truncated, or wrapping poorly?
+- Is text in table cells too small to read comfortably?
+- For two-column layouts: Does the table overflow its column width?
+- If table overflow detected, REPORT: "TABLE_OVERFLOW: [specific description]"
+- Suggest content-level fixes: "Abbreviate column header '[long header]' to '[suggested short form]'"
+- Example: "Abbreviate 'Formatting Accuracy (%)' to 'Format Acc. (%)'"
+- The fix should be a SOURCE CONTENT change (edit the CSV headers), not just LaTeX formatting
+
+**CRITICAL CHECK - Float Collision/Overlap:**
+⚠️ For pages with multiple tables or figures:
+- Do any two tables or figures overlap, collide, or run into each other?
+- Is there missing or insufficient vertical space between consecutive floats?
+- Does the bottom of one table/figure touch or overlap the top (caption) of the next?
+- Are floats stacked so tightly that captions or content are obscured?
+- If float collision detected, REPORT: "FLOAT_COLLISION: [specific description, e.g., 'Table I overlaps Table II']"
+- Suggest fixes: "Add \\FloatBarrier between tables", "Change float placement from [!t] to [htbp]", "Add \\vspace between consecutive floats"
+- This is a MAJOR formatting defect — score the page no higher than 5/10 if tables/figures overlap
 
 **CRITICAL CHECK - LaTeX Syntax Detection:**
 ⚠️ **RED FLAG**: Check if any LaTeX code or commands are visible in the rendered PDF (e.g., \\textbf{}, \\section{}, \\begin{}, \\usepackage{}, \\cite{}, \\ref{}, etc.).
@@ -531,9 +564,9 @@ class VisualQAAgent:
                 to load rendering instructions from content_types/{id}/type.md
         """
         self.pdf_converter = PDFToImageConverter()
-        self.validator = VisualValidator()
 
         rendering_instructions = ""
+        has_toc = True  # default: assume TOC exists
         if content_source:
             try:
                 from tools.content_type_loader import ContentTypeLoader
@@ -543,6 +576,17 @@ class VisualQAAgent:
             except Exception as e:
                 print(f"⚠️ Could not load content type '{content_source}': {e}")
 
+            # Check config.md for include_toc setting
+            config_path = Path(f"artifacts/sample_content/{content_source}/config.md")
+            if config_path.exists():
+                try:
+                    config_text = config_path.read_text(encoding='utf-8')
+                    if re.search(r'include_toc:\s*false', config_text, re.IGNORECASE):
+                        has_toc = False
+                except Exception:
+                    pass
+
+        self.validator = VisualValidator(has_toc=has_toc)
         self.llm_analyzer = MultimodalLLMAnalyzer(api_key, rendering_instructions=rendering_instructions)
 
         # Create output directory for images

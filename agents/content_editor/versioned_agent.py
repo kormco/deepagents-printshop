@@ -167,7 +167,8 @@ class VersionedContentEditorAgent:
 
     def process_content_with_versioning(self,
                                       target_version: str = "v1_content_edited",
-                                      parent_version: str = "v0_original") -> Dict:
+                                      parent_version: str = "v0_original",
+                                      enriched_context: str = "") -> Dict:
         """
         Process content with full version management.
 
@@ -226,7 +227,7 @@ class VersionedContentEditorAgent:
 
             try:
                 # Review and improve content
-                review_result = self.content_reviewer.review_text(content)
+                review_result = self.content_reviewer.review_text(content, enriched_context=enriched_context)
                 improved_content[filename] = review_result["improved_content"]
                 improvement_results[filename] = review_result
 

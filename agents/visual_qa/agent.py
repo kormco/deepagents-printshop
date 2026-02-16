@@ -33,8 +33,9 @@ class ImprovementAction:
 class VisualQAFeedbackAgent:
     """Agent that processes Visual QA results and applies dynamic improvements."""
 
-    def __init__(self, content_source: str = ""):
+    def __init__(self, content_source: str = "", enriched_context: str = ""):
         self.content_source = content_source
+        self.enriched_context = enriched_context
         self.visual_qa = VisualQAAgent(content_source=content_source)
         self.pdf_compiler = PDFCompiler()
         self.llm_latex_generator = LLMLaTeXGenerator()
@@ -100,6 +101,32 @@ class VisualQAFeedbackAgent:
                 "latex_fixes": [
                     "\\setlength{\\headheight}{14.5pt}",
                     "\\addtolength{\\topmargin}{-2.5pt}"
+                ]
+            },
+            "diagram_spacing": {
+                "keywords": ["diagram_spacing", "cramped", "too close", "node spacing", "diagram scale", "tikz spacing", "figure spacing", "elements too close", "overlapping"],
+                "latex_fixes": [
+                    "% Increase TikZ node spacing by adjusting coordinates",
+                    "% Scale up diagram: add [scale=1.2] to tikzpicture",
+                    "% Add padding: increase minimum height/width on nodes"
+                ]
+            },
+            "table_overflow": {
+                "keywords": ["table_overflow", "table overflow", "column width", "truncated", "cut off", "extends beyond", "abbreviate"],
+                "latex_fixes": [
+                    "% Table headers need abbreviation - LLM will suggest specific changes",
+                    "% Abbreviate long headers: 'Accuracy' -> 'Acc.', 'Processing' -> 'Proc.', etc.",
+                    "% Consider using \\resizebox{\\columnwidth}{!}{...} as fallback",
+                    "% For two-column: switch to table* for full-width if content cannot be condensed"
+                ]
+            },
+            "float_collision": {
+                "keywords": ["float_collision", "float collision", "tables overlap", "table overlap", "runs into", "collide", "collision", "floats overlap", "stacked"],
+                "latex_fixes": [
+                    "% Add \\usepackage{placeins} and \\FloatBarrier between consecutive floats",
+                    "% Change float placement: [!t] -> [htbp] for non-critical tables",
+                    "% Add \\vspace{1em} after \\end{table} before next float",
+                    "% Ensure adequate text between consecutive table/figure environments"
                 ]
             }
         }
@@ -271,8 +298,12 @@ class VisualQAFeedbackAgent:
         issue_lower = issue.lower()
 
         # High priority keywords
-        if any(word in issue_lower for word in ["unreadable", "poor", "bad", "error"]):
+        if any(word in issue_lower for word in ["unreadable", "poor", "bad", "error", "critical"]):
             return 3
+        elif any(word in issue_lower for word in ["diagram_spacing", "cramped", "too close", "overlapping"]):
+            return 3  # Diagram spacing is high priority
+        elif any(word in issue_lower for word in ["float_collision", "tables overlap", "runs into", "collide"]):
+            return 3  # Float collision is high priority
         elif any(word in issue_lower for word in ["improve", "enhance", "better"]):
             return 2
         elif any(word in issue_lower for word in ["slightly", "minor", "small"]):
@@ -292,6 +323,10 @@ class VisualQAFeedbackAgent:
         # Merge learned visual context into the issues list so the LLM sees it
         if self.learned_visual_context:
             issues = issues + [f"[Historical pattern] {self.learned_visual_context}"]
+
+        # Merge orchestrator enriched context
+        if self.enriched_context:
+            issues = issues + [f"[Orchestrator guidance] {self.enriched_context}"]
 
         # Use LLM-based LaTeX generator to apply fixes intelligently
         print(f"🤖 Using LLM to apply {len(issues)} improvements...")
