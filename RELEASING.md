@@ -59,7 +59,33 @@ Follow [semver](https://semver.org/):
 - **Minor** (0.1.1 → 0.2.0): New features, new content types, pipeline improvements
 - **Major** (0.1.1 → 1.0.0): Breaking API/CLI changes
 
-### Step 2 — Clean Build
+### Step 2 — Rewrite README Links for PyPI
+
+The README uses relative links (e.g., `deepagents-printshop-SAMPLE-research_report.pdf`) so they work when browsing the repo on any branch. PyPI can't resolve relative links, so they must be rewritten to absolute GitHub URLs before building.
+
+Run the helper script:
+
+```bash
+python scripts/pypi_readme.py
+```
+
+This rewrites links in `README.md` like:
+| Relative (repo) | Absolute (PyPI) |
+|---|---|
+| `deepagents-printshop-SAMPLE-research_report.pdf` | `https://raw.githubusercontent.com/kormco/deepagents-printshop/main/deepagents-printshop-SAMPLE-research_report.pdf` |
+| `docs/pipeline-walkthrough/PIPELINE_WALKTHROUGH.md` | `https://github.com/kormco/deepagents-printshop/blob/main/docs/pipeline-walkthrough/PIPELINE_WALKTHROUGH.md` |
+
+**Important:** Do NOT commit the rewritten README. The build reads it, then you restore the original:
+
+```bash
+python scripts/pypi_readme.py   # rewrite for PyPI
+python -m build                  # build reads absolute URLs
+git checkout README.md           # restore relative URLs
+```
+
+The automated workflow handles this automatically.
+
+### Step 3 — Clean Build
 
 ```bash
 rm -rf dist/ build/ *.egg-info
@@ -70,7 +96,7 @@ This produces two files in `dist/`:
 - `deepagents_printshop-0.2.0.tar.gz` (sdist)
 - `deepagents_printshop-0.2.0-py3-none-any.whl` (wheel)
 
-### Step 3 — Filesize Check
+### Step 4 — Filesize Check
 
 The wheel must stay under **1 MB**. If it's larger, binary files leaked into the package.
 
@@ -93,7 +119,7 @@ unzip -l dist/*.whl | grep -iE '\.(pdf|png|jpg|csv|json)' && echo "WARNING: bina
 
 If the sdist is over 5 MB, sample content or images are leaking in. Check the `[tool.hatch.build.targets.sdist]` exclude list in `pyproject.toml`.
 
-### Step 4 — Twine Check
+### Step 5 — Twine Check
 
 ```bash
 twine check dist/*
@@ -104,7 +130,7 @@ This validates:
 - README renders correctly on PyPI
 - No missing required fields
 
-### Step 5 — Test Upload (Optional)
+### Step 6 — Test Upload (Optional)
 
 Upload to TestPyPI first to verify everything looks right:
 
@@ -115,13 +141,13 @@ twine upload --repository testpypi dist/*
 # https://test.pypi.org/project/deepagents-printshop/
 ```
 
-### Step 6 — Publish
+### Step 7 — Publish
 
 ```bash
 twine upload dist/*
 ```
 
-### Step 7 — Tag
+### Step 8 — Tag and Restore README
 
 ```bash
 git tag v0.2.0
@@ -135,11 +161,13 @@ Run through this before every release:
 - [ ] All tests pass: `pytest tests/ -v`
 - [ ] Lint is clean: `ruff check .`
 - [ ] Version bumped in `pyproject.toml`
+- [ ] README links rewritten for PyPI: `python scripts/pypi_readme.py`
 - [ ] `python -m build` succeeds
 - [ ] Wheel is under 1 MB
 - [ ] `twine check dist/*` passes
 - [ ] No binary files in wheel (`unzip -l dist/*.whl`)
 - [ ] Sdist is under 5 MB
+- [ ] README restored after build: `git checkout README.md`
 - [ ] Git working tree is clean
 - [ ] Tagged with `v{version}`
 

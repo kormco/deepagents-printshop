@@ -34,8 +34,14 @@ jobs:
       - name: Install build tools
         run: pip install build twine
 
+      - name: Rewrite README links for PyPI
+        run: python scripts/pypi_readme.py
+
       - name: Build package
         run: python -m build
+
+      - name: Restore README
+        run: git checkout README.md
 
       - name: Check package metadata
         run: twine check dist/*
