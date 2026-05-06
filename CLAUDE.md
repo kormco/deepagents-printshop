@@ -102,13 +102,25 @@ Content type definitions live in `content_types/<type_id>/type.md`. Each file co
 
 To change how a document renders, edit the rendering instructions in the appropriate type.md file. The LaTeX agent reads these at generation time.
 
+### Multi-Theme Content Types
+
+Some content types support multiple visual themes that share the same macro contract but swap palette, typography, and layout primitives. The pattern (introduced by `content_types/resume/type.md`):
+
+1. The `type.md` includes a **Theme Definitions** section listing each theme's palette and layout deltas
+2. The `config.md` for a given sample selects a theme via a `theme:` field (e.g., `theme: architect`)
+3. A `palette_preview.pdf` (and accompanying `.tex` source) lives next to `type.md` as a visual design reference for users picking a theme
+4. The macro signatures (`\resumeheader`, `\resumesection`, etc.) stay constant across themes; only their internal rendering changes
+
+When adding a new theme to an existing multi-theme content type, update both the **Theme Definitions** section and the per-theme color/macro override notes in `type.md`, then re-render `palette_preview.pdf` so the design reference stays in sync.
+
 ### Sample Content Structure
 
 Each sample content directory (`artifacts/sample_content/<type_id>/`) contains:
 - **config.md**: Document metadata (title, author, abstract) and a content manifest listing sections in order
 - **Section files**: Markdown files referenced by the manifest (e.g., `introduction.md`, `results.md`)
-- **images/**: Images referenced by inline `<!-- IMAGE: -->` comments in markdown
-- **data/**: CSV files referenced by inline `<!-- CSV_TABLE: -->` comments in markdown
+- **images/** *(optional)*: Images referenced by inline `<!-- IMAGE: -->` comments — only present if the content type uses figures
+- **data/** *(optional)*: CSV files referenced by inline `<!-- CSV_TABLE: -->` comments — only present if the content type uses tables
+- **Sidecar deliverables** *(optional)*: Some content types pair with an adjacent deliverable. For example, `artifacts/sample_content/resume/cover_letter.md` ships next to the resume sections; the LaTeX agent renders it with the matched theme via the `resume_cover_letter` content type.
 
 ### Inline Reference Syntax
 
@@ -187,6 +199,14 @@ DeepAgents persistent memory stored in `.deepagents/`:
 - **Flesch readability vs. academic tone**: The content editor may lower scores on first pass by making prose more academic. Dense sentences score poorly on Flesch Reading Ease. If content consistently fails the gate, simplify sentence structure in the source markdown rather than lowering thresholds.
 - **Unicode in LaTeX**: pdflatex cannot handle Unicode math symbols (superscripts, subscripts like `⁻`, `²`). The `_sanitize_unicode_for_latex()` method in latex_optimizer.py handles known cases, but new Unicode characters from LLM output may need to be added to the replacement map.
 - **Duplicate figure labels**: If images appear both via inline `<!-- IMAGE: -->` comments and via a separate image-walking step, you get duplicate `\label{}` errors. All images should be referenced inline from markdown — there is no separate image directory scan.
+
+### Conventions
+
+These cross-content-type patterns are followed across the codebase. New content types should adopt them.
+
+- **AI-disclosure footer**: Every rendered document includes a single italic gray line — *"Drafted with AI assistance via DeepAgents PrintShop."* — at ~7pt in the bottom-right of the last page (or every page for multi-page deliverables). Implemented via `\AddToShipoutPictureFG{}` from `eso-pic`, or `\vfill\hfill\textit{...}` immediately before `\end{document}`. This establishes a clear, non-removable AI-content disclosure.
+- **Demo content banner**: When a sample's biographical or factual content is invented for demonstration (e.g., the parody resume), prepend a small framed banner at the top of page 1 noting *"Sample output --- fictitious content."* This makes the demo nature obvious to anyone viewing a rendered sample.
+- **Multi-theme content types**: See *Multi-Theme Content Types* above. Use the `theme:` config field plus a `palette_preview.pdf` design reference rather than forking the content type for each visual variant.
 
 ## GitHub Issues
 
