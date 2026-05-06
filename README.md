@@ -9,7 +9,7 @@ An advanced multi-agent system that generates professional LaTeX documents with 
 
 ## Example Output
 
-The system generates three types of professional documents:
+The system generates five types of professional documents:
 
 ### Research Report
 A professional academic-style research report with tables, figures, TikZ diagrams, and citations.
@@ -52,6 +52,29 @@ A 6-page two-column conference paper in standard IEEE format with tables, TikZ d
 - NSF funding acknowledgment
 
 [View sample PDF](deepagents-printshop-SAMPLE-ieee_conference.pdf) (~180KB, 6 pages) | [View pipeline walkthrough](docs/ieee-pipeline-walkthrough/PIPELINE_WALKTHROUGH.md)
+
+### Resume
+A 2-page senior-engineer resume with a multi-theme design system — same macro contract, swappable visual skin via the `theme:` field in `config.md`.
+
+**Features:**
+- Four themes: `banker` (deep navy + light navy), `letterpress` (navy + brass on cream), `architect` (slate sidebar + sage rules), `editorial` (serif + oxblood on cream)
+- Stable macro contract across all themes (`\resumeheader`, `\resumesection`, `\jobentry`, `\subjobentry`, `\jobcontext`, `\skillgroup`, `\speakentry`)
+- ATS-friendly single-column body, 2-column skills block via `multicols`
+- Demo banner + AI-disclosure footer: *"Drafted with AI assistance via DeepAgents PrintShop."*
+- Sample tailored for a fictional Chief Typographic Officer role at TypeWithAI.com (typography parody — not a real biography)
+
+[View sample PDF](deepagents-printshop-SAMPLE-resume.pdf) (~50KB, 2 pages) | [View 4-theme palette preview](content_types/resume/palette_preview.pdf)
+
+### Resume Cover Letter
+A 1-page cover letter visually matched to the resume so the two ship as a coordinated application packet.
+
+**Features:**
+- Mirrors the resume's four themes; selecting the same theme on both produces a matched pair
+- Header treatment matches the resume (slate sidebar in `architect`, navy band in `banker`, etc.)
+- Date / recipient block / `Re:` subject / 3–5 body paragraphs / signature
+- Same demo banner + AI-disclosure footer as the resume
+
+[View sample PDF](deepagents-printshop-SAMPLE-resume-cover-letter.pdf) (~35KB, 1 page)
 
 > **Note:** All generated documents include a disclaimer stating they contain fictitious sample content created for demonstration purposes.
 
