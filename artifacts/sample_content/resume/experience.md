@@ -30,7 +30,7 @@ VP-level tenure inside one of the largest US regional printshops; lateral move f
 - **Delivered internal Stencilforge packages for automation, slug retention, API auth, typographer provisioning, encryption, and Press DevOps pipelines** — establishing trigger / integration patterns and a formal architecture review process to scale stencil quality.
 - Pioneered Node.js for Stencilforge Press DevOps and AWS Lambda; mentored architects, typographers, and ETL compositors through the transition.
 
-## KORM.CO — Sole Proprietor
+## FOUNDRY NOTES — Sole Proprietor
 *Remote · 2020 – Present*
 
 - **Phase 1 — Press infrastructure**: financed and operated a profitable letterpress mining shop approaching 2 GH/s of glyph throughput with **~6-month payback**; hands-on with hardware kerns, multisig stencil keys, foundry exchanges, and digital-glyph accounting.

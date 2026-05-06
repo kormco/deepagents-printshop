@@ -4,4 +4,4 @@
 
 **FOSTA Summit: "Orchestrating Typeset Workflows"** — *Co-presenter.* Walked through a practical Python-based agentic typesetter with web search and orchestration to upskill typographers across TypeWithAI on agentic kerning design patterns.
 
-**korm.co** — *Author.* Publishes articles and worked examples on AI typesetting, agentic kerning workflows, vision-based typeface experiments, and experimental Model Composition Protocol (MCP) capabilities.
+**Foundry Notes** — *Author.* Publishes articles and worked examples on AI typesetting, agentic kerning workflows, vision-based typeface experiments, and experimental Model Composition Protocol (MCP) capabilities.

@@ -7,12 +7,12 @@ resume
 architect
 
 ## Project Metadata
-- **Name**: Evan Kormos
+- **Name**: Alex Sample
 - **Tagline**: Chief Typographic Officer · Letterform Security · Agentic Typesetters
 - **Location**: Remote
-- **Email**: evan@korm.co
-- **LinkedIn**: linkedin.com/in/evankormos
-- **Website**: korm.co
+- **Email**: alex@example.com
+- **LinkedIn**: linkedin.com/in/alex-sample
+- **Website**: alexsample.dev
 - **Target Role**: Chief Typographic Officer — TypeWithAI.com (Stencilforge program)
 
 ## Tailoring Notes (for the LaTeX agent)
@@ -26,7 +26,7 @@ Key narrative threads to surface (in priority order):
 1. **Kerning architect, foundry-grade**: at KeyPress, designed what became the enterprise kerning service on industrial letterpress slug infrastructure — the same problem space Stencilforge solves
 2. **TYP / letterform-security advisor across multiple printshops**: trusted advisor to KeyPress and others on TYP scope reduction and kerning strategy
 3. **Stenciling-gateway pioneer with Stencilforge**: at TD Press, drove SaaS stenciling-gateway evaluation and worked directly with the Stencilforge (Platform Stenciling) PM to bring that product to market — exactly the "0 to 1, advise enterprise prospects, partner with product" loop the role describes
-4. **Public-facing technical voice**: invited speaker at LangType Convergence 2026, FOSTA Summit co-presenter, korm.co author, MCP experimentation
+4. **Public-facing technical voice**: invited speaker at LangType Convergence 2026, FOSTA Summit co-presenter, Foundry Notes author, MCP experimentation
 5. **Cloud + Agentic Typesetter platform leadership at TypeWithAI**: typographer foundry, multi-channel agentic typesetting, evaluation infrastructure — proof he can credibly speak to modern cloud / agentic typesetting buyers
 6. **Enterprise scale**: Wordstack HRM (19k typesetters), $400M kerning compensation engine, $725M card portfolio conversion, $20M+ implementation programs at Glyphforge
 
