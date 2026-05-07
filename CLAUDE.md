@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-DeepAgents PrintShop is a document generation system that produces professional LaTeX documents with comprehensive formatting, citations, tables, images, and diagrams. It uses the DeepAgents CLI framework, LangGraph for pipeline orchestration, and runs in Docker with TeX Live for PDF compilation.
+DeepAgents PrintShop is a document generation system that produces professional LaTeX documents with comprehensive formatting, citations, tables, images, and diagrams. It uses LangGraph for pipeline orchestration, the Anthropic SDK for Claude calls, and runs in Docker with TeX Live for PDF compilation.
 
 **Important: Do not hardcode LaTeX output into deterministic Python logic.** Rendering behavior is controlled by natural language instructions in `content_types/*/type.md` files, which the LaTeX agent reads at generation time. To change how a document looks (disclaimers, footers, spacing, section formatting), edit the type.md rendering instructions — not the Python code.
 
@@ -234,7 +234,6 @@ Example: `gh issue create --title "..." --body "..." --label "bug"`
 ## Dependencies
 
 Python packages (requirements.txt):
-- deepagents-cli: Core agent framework
 - anthropic, openai: LLM APIs
 - langchain, langchain-anthropic, langchain-openai: LLM orchestration
 - langgraph: Pipeline state graph orchestration

@@ -36,7 +36,7 @@ docker-compose build
 This will:
 - Install Python 3.11
 - Install TeX Live (for LaTeX/PDF generation)
-- Install deepagents-cli and all dependencies
+- Install Python dependencies (LangGraph, Anthropic SDK, etc.)
 - Set up the project structure
 
 ### 3. Run the Agent
@@ -188,16 +188,6 @@ If you get authentication errors:
 
 ## Advanced Usage
 
-### Running with DeepAgents CLI
-
-Once inside the container, you can use the full DeepAgents CLI:
-
-```bash
-docker-compose run --rm deepagent-scribe bash
-# Inside container:
-deepagents --agent research-scribe
-```
-
 ### Inspecting Agent Memory
 
 Agent memories are stored in `.deepagents/research_agent/memories/`:
@@ -227,7 +217,7 @@ result = tool.process()
 
 ## Resources
 
-- DeepAgents Documentation: https://docs.langchain.com/oss/python/deepagents
+- LangGraph Documentation: https://langchain-ai.github.io/langgraph/
 - LaTeX Documentation: https://www.latex-project.org/help/documentation/
 - TikZ Examples: https://texample.net/tikz/
 - Anthropic API: https://docs.anthropic.com/
