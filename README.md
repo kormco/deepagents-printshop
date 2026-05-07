@@ -318,6 +318,8 @@ pip install deepagents-printshop
 
 This installs the Python package and CLI entry point (`printshop`). You still need system dependencies (TeX Live, Poppler) for PDF compilation — see [SYSTEM_DEPS.md](https://github.com/kormco/deepagents-printshop/blob/main/SYSTEM_DEPS.md).
 
+**Sample content:** the wheel ships the `content_types/` definitions and a text-only copy of `artifacts/sample_content/` (markdown + CSV). On first run, `printshop --content <type>` scaffolds the sample into your CWD if it isn't already there, and downloads any missing images from this GitHub repo. Pass `--skip-image-download` to skip the network fetch (figures will reference missing files), or set `PRINTSHOP_IMAGES_REF=<branch-or-tag>` to pin to a specific repo ref.
+
 ### From Source
 
 ```bash

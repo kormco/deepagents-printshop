@@ -323,7 +323,7 @@ class QAOrchestratorAgent:
                 learner = PatternLearner(document_type=self.content_source)
                 learner.learn_from_pipeline_run(results)
             except Exception as e:
-                print(f"⚠️  Pattern learning failed (non-fatal): {e}")
+                print(f"[warn] Pattern learning failed (non-fatal): {e}")
 
         print("=" * 70)
         print(f"QA ORCHESTRATOR: Pipeline {workflow_id} Complete")
@@ -572,11 +572,23 @@ def main():
     """Run the QA orchestrator agent."""
     import argparse
 
+    # Force UTF-8 on stdout/stderr so emoji prints don't crash on Windows cp1252.
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            stream.reconfigure(encoding="utf-8", errors="replace")
+        except (AttributeError, OSError):
+            pass
+
     parser = argparse.ArgumentParser(description='QA Orchestrator Agent')
     parser.add_argument(
         '--content', '-c',
         default='research_report',
         help='Content source folder (e.g., research_report, magazine)'
+    )
+    parser.add_argument(
+        '--skip-image-download',
+        action='store_true',
+        help='Skip auto-downloading sample images from GitHub on first scaffold'
     )
     args = parser.parse_args()
 
@@ -589,6 +601,14 @@ def main():
     print(f"Content source: {content_source}")
     print(f"Run ID: {run_id}")
     print(f"Output directory: {output_dir}")
+
+    # Scaffold sample content from packaged copy if user's CWD is empty.
+    from tools.sample_content_scaffold import ensure_sample_content
+    try:
+        ensure_sample_content(content_source, download_images=not args.skip_image_download)
+    except FileNotFoundError as e:
+        print(f"Error: {e}")
+        sys.exit(1)
 
     # Initialize agent with content source
     agent = QAOrchestratorAgent(content_source=content_source)
