@@ -46,8 +46,10 @@ env/
 # DeepAgents
 .deepagents/
 
-# Claude Code
-.claude/
+# Claude Code (project-level skills under .claude/skills/ are tracked;
+# everything else under .claude/ — settings.local.json, etc. — is local-only)
+.claude/*
+!.claude/skills/
 
 # LaTeX
 *.aux

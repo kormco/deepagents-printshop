@@ -635,6 +635,29 @@ Uses multimodal LLM analysis for PDF quality:
 - Figure and table quality
 - **Critical:** LaTeX syntax detection (flags unrendered LaTeX commands)
 
+### Visual QA Modes
+
+The autonomous visual QA stage is the most expensive and most Claude-dependent part of the pipeline. The `VISUAL_QA_MODE` env var lets you opt out and either ship straight after LaTeX generation or drive the visual review yourself in Claude Code:
+
+| Mode | Pipeline behavior | Visual QA |
+|------|-------------------|-----------|
+| `auto` *(default)* | Runs all three stages | Claude vision, automated, gated |
+| `disabled` | Stops after LaTeX gen, emits PDF + report | Skipped — review manually or out-of-band |
+| `interactive` | Stops after LaTeX gen, writes a handoff manifest | Skipped — invoke `/printshop-review` in Claude Code to walk page-by-page through the rendered PDF |
+
+```bash
+# Run without autonomous visual QA
+VISUAL_QA_MODE=disabled python agents/qa_orchestrator/agent.py
+
+# Run, then drive the review yourself in Claude Code
+VISUAL_QA_MODE=interactive python agents/qa_orchestrator/agent.py
+# ... then in Claude Code: /printshop-review
+```
+
+In `interactive` mode the pipeline writes `artifacts/output/<run_id>/handoff.json` (run id, .tex/PDF paths, page count, concerns from the LaTeX stage). The `.claude/skills/printshop-review/` skill picks that up and runs an interactive review loop — render pages, propose targeted fixes, accept/reject, recompile, continue.
+
+Recompilation after a skill-applied fix goes through `python -m tools.recompile <run_id>`, which wraps `PDFCompiler` to keep multi-pass behavior and regex-fix support consistent with the autonomous pipeline.
+
 ## Version Control System
 
 All content versions are tracked with complete change history:

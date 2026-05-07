@@ -3,6 +3,7 @@
 All tests run without Docker, TeX Live, or API keys.
 """
 
+import json
 import sys
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -13,11 +14,14 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from agents.qa_orchestrator.langgraph_workflow import (  # noqa: E402, I001
     build_qa_graph,
     compile_qa_pipeline,
+    completion_node,
     export_mermaid_diagram,
+    get_visual_qa_mode,
     merge_dicts,
     route_after_content_review,
     route_after_latex_optimization,
     route_after_quality_assessment,
+    write_handoff_manifest,
 )
 from agents.qa_orchestrator.quality_gates import (  # noqa: E402
     QualityAssessment,
@@ -494,6 +498,181 @@ class TestCompilationFailureFeedback:
         evaluation = manager.evaluate_latex_quality_gate(assessment)
         assert evaluation.result == QualityGateResult.ITERATE
         assert "compilation failed" in evaluation.reasons[0].lower()
+
+
+class TestVisualQAMode:
+    def test_default_is_auto(self, monkeypatch):
+        monkeypatch.delenv("VISUAL_QA_MODE", raising=False)
+        assert get_visual_qa_mode() == "auto"
+
+    def test_disabled_recognized(self, monkeypatch):
+        monkeypatch.setenv("VISUAL_QA_MODE", "disabled")
+        assert get_visual_qa_mode() == "disabled"
+
+    def test_interactive_recognized(self, monkeypatch):
+        monkeypatch.setenv("VISUAL_QA_MODE", "interactive")
+        assert get_visual_qa_mode() == "interactive"
+
+    def test_case_insensitive(self, monkeypatch):
+        monkeypatch.setenv("VISUAL_QA_MODE", "Interactive")
+        assert get_visual_qa_mode() == "interactive"
+
+    def test_unknown_falls_back_to_auto(self, monkeypatch):
+        monkeypatch.setenv("VISUAL_QA_MODE", "manual")
+        assert get_visual_qa_mode() == "auto"
+
+    @patch("agents.qa_orchestrator.langgraph_workflow.WorkflowCoordinator")
+    def test_route_latex_pass_routes_to_quality_assessment_when_disabled(
+        self, MockCoordinator, monkeypatch
+    ):
+        """When VISUAL_QA_MODE=disabled, a passing LaTeX gate skips visual_qa."""
+        monkeypatch.setenv("VISUAL_QA_MODE", "disabled")
+        mock_coord = MagicMock()
+        mock_coord.assess_workflow_quality.return_value = QualityAssessment(
+            latex_score=90, latex_issues=[]
+        )
+        mock_coord.quality_gate_manager.evaluate_latex_quality_gate.return_value = QualityGateEvaluation(
+            gate_name="latex_quality",
+            result=QualityGateResult.PASS,
+            score=90,
+            threshold=85,
+            reasons=["Good LaTeX quality: 90"],
+            recommendations=[],
+            next_action="proceed_to_visual_qa",
+        )
+        MockCoordinator.return_value = mock_coord
+
+        state = {
+            "content_source": "research_report",
+            "agent_results": [],
+            "quality_assessments": [],
+            "quality_evaluations": [],
+            "iterations_completed": 0,
+            "agent_context": {},
+        }
+        assert route_after_latex_optimization(state) == "quality_assessment"
+
+    @patch("agents.qa_orchestrator.langgraph_workflow.WorkflowCoordinator")
+    def test_route_latex_pass_routes_to_quality_assessment_when_interactive(
+        self, MockCoordinator, monkeypatch
+    ):
+        """When VISUAL_QA_MODE=interactive, a passing LaTeX gate skips visual_qa."""
+        monkeypatch.setenv("VISUAL_QA_MODE", "interactive")
+        mock_coord = MagicMock()
+        mock_coord.assess_workflow_quality.return_value = QualityAssessment(
+            latex_score=90, latex_issues=[]
+        )
+        mock_coord.quality_gate_manager.evaluate_latex_quality_gate.return_value = QualityGateEvaluation(
+            gate_name="latex_quality",
+            result=QualityGateResult.PASS,
+            score=90,
+            threshold=85,
+            reasons=["Good LaTeX quality: 90"],
+            recommendations=[],
+            next_action="proceed_to_visual_qa",
+        )
+        MockCoordinator.return_value = mock_coord
+
+        state = {
+            "content_source": "research_report",
+            "agent_results": [],
+            "quality_assessments": [],
+            "quality_evaluations": [],
+            "iterations_completed": 0,
+            "agent_context": {},
+        }
+        assert route_after_latex_optimization(state) == "quality_assessment"
+
+    @patch("agents.qa_orchestrator.langgraph_workflow.WorkflowCoordinator")
+    def test_iteration_still_takes_priority_in_disabled_mode(
+        self, MockCoordinator, monkeypatch
+    ):
+        """Disabled mode does NOT skip the iteration path on a failing gate."""
+        monkeypatch.setenv("VISUAL_QA_MODE", "disabled")
+        mock_coord = MagicMock()
+        mock_coord.assess_workflow_quality.return_value = QualityAssessment(latex_score=70)
+        mock_coord.quality_gate_manager.evaluate_latex_quality_gate.return_value = QualityGateEvaluation(
+            gate_name="latex_quality",
+            result=QualityGateResult.ITERATE,
+            score=70,
+            threshold=85,
+            reasons=[],
+            recommendations=[],
+            next_action="run_latex_specialist",
+        )
+        mock_coord.quality_gate_manager.thresholds.max_iterations = 3
+        MockCoordinator.return_value = mock_coord
+
+        state = {
+            "content_source": "research_report",
+            "agent_results": [],
+            "quality_assessments": [],
+            "quality_evaluations": [],
+            "iterations_completed": 0,
+            "agent_context": {},
+        }
+        assert route_after_latex_optimization(state) == "iteration"
+
+
+class TestHandoffManifest:
+    def test_handoff_written_in_interactive_mode(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("VISUAL_QA_MODE", "interactive")
+        # Create a fake .tex so the manifest reports tex_exists=True
+        (tmp_path / "research_report.tex").write_text("\\documentclass{article}\n")
+        state = {
+            "workflow_id": "abc12345",
+            "content_source": "research_report",
+            "output_dir": str(tmp_path),
+            "agent_context": {
+                "latex_specialist_notes": {
+                    "structure_score": 24,
+                    "typography_score": 15,  # weak — should appear in concerns
+                    "typography_issues": ["bad spacing on page 2"],
+                    "packages_used": [],
+                }
+            },
+        }
+        completion_node(state)
+
+        manifest_path = tmp_path / "handoff.json"
+        assert manifest_path.exists(), "handoff.json should be written in interactive mode"
+        manifest = json.loads(manifest_path.read_text())
+        assert manifest["run_id"] == "abc12345"
+        assert manifest["content_source"] == "research_report"
+        assert manifest["visual_qa_mode"] == "interactive"
+        assert manifest["next_step"] == "interactive_review"
+        assert manifest["tex_exists"] is True
+        assert manifest["pdf_exists"] is False  # no PDF written
+        # Concerns surface the typography issue and the weak score
+        assert any("typography" in c for c in manifest["concerns"])
+        assert any("weak typography" in c for c in manifest["concerns"])
+
+    def test_handoff_not_written_in_auto_mode(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("VISUAL_QA_MODE", "auto")
+        state = {
+            "workflow_id": "abc12345",
+            "content_source": "research_report",
+            "output_dir": str(tmp_path),
+            "agent_context": {},
+        }
+        completion_node(state)
+        assert not (tmp_path / "handoff.json").exists()
+
+    def test_handoff_not_written_in_disabled_mode(self, tmp_path, monkeypatch):
+        """Disabled mode emits no manifest — user has nothing to pick up."""
+        monkeypatch.setenv("VISUAL_QA_MODE", "disabled")
+        state = {
+            "workflow_id": "abc12345",
+            "content_source": "research_report",
+            "output_dir": str(tmp_path),
+            "agent_context": {},
+        }
+        completion_node(state)
+        assert not (tmp_path / "handoff.json").exists()
+
+    def test_write_handoff_manifest_returns_none_without_output_dir(self, monkeypatch):
+        monkeypatch.setenv("VISUAL_QA_MODE", "interactive")
+        assert write_handoff_manifest({}) is None
 
 
 class TestMergeDicts:

@@ -6,6 +6,7 @@ downstream agents directly -- no WorkflowExecution object, no glue code.
 PipelineState is the single source of truth.
 """
 
+import json
 import operator
 import os
 import sys
@@ -29,6 +30,29 @@ from agents.qa_orchestrator.quality_gates import (  # noqa: E402, I001
 )
 from agents.qa_orchestrator.pipeline_types import AgentResult, AgentType  # noqa: E402, I001
 from agents.qa_orchestrator.workflow_coordinator import WorkflowCoordinator  # noqa: E402, I001
+
+
+# ---------------------------------------------------------------------------
+# Visual QA mode helpers
+# ---------------------------------------------------------------------------
+
+VISUAL_QA_MODES = ("auto", "disabled", "interactive")
+
+
+def get_visual_qa_mode() -> str:
+    """Read VISUAL_QA_MODE from the environment, defaulting to "auto".
+
+    Unknown values fall back to "auto" with a warning so a typo never silently
+    disables the autonomous review.
+    """
+    raw = (os.environ.get("VISUAL_QA_MODE") or "auto").strip().lower()
+    if raw not in VISUAL_QA_MODES:
+        print(
+            f"   [LangGraph] VISUAL_QA_MODE={raw!r} not recognized; falling back to 'auto'. "
+            f"Valid values: {', '.join(VISUAL_QA_MODES)}"
+        )
+        return "auto"
+    return raw
 
 
 # ---------------------------------------------------------------------------
@@ -682,8 +706,91 @@ def iteration_node(state: PipelineState) -> Dict[str, Any]:
     }
 
 
+def _count_pdf_pages(pdf_path: Path) -> Optional[int]:
+    """Best-effort PDF page count. Returns None if no available reader works."""
+    try:
+        from pdf2image.pdf2image import pdfinfo_from_path  # type: ignore
+        info = pdfinfo_from_path(str(pdf_path))
+        pages = info.get("Pages")
+        if pages is not None:
+            return int(pages)
+    except Exception:
+        pass
+    try:
+        from pypdf import PdfReader  # type: ignore
+        return len(PdfReader(str(pdf_path)).pages)
+    except Exception:
+        pass
+    return None
+
+
+def write_handoff_manifest(state: PipelineState) -> Optional[Path]:
+    """Write handoff.json for the interactive review skill to pick up.
+
+    Lists where the .tex/PDF live, page count, and any concerns the
+    LaTeX-specialist stage flagged. Returns the manifest path, or None if
+    the output directory could not be resolved.
+    """
+    output_dir = state.get("output_dir")
+    if not output_dir:
+        return None
+
+    out_path = Path(output_dir)
+    out_path.mkdir(parents=True, exist_ok=True)
+
+    content_source = state.get("content_source", "research_report")
+    tex_path = out_path / f"{content_source}.tex"
+    pdf_path = out_path / f"{content_source}.pdf"
+
+    page_count: Optional[int] = None
+    if pdf_path.exists():
+        page_count = _count_pdf_pages(pdf_path)
+
+    agent_ctx = state.get("agent_context", {}) or {}
+    latex_notes = agent_ctx.get("latex_specialist_notes", {}) or {}
+    concerns: List[str] = []
+    for issue in latex_notes.get("typography_issues", []) or []:
+        concerns.append(f"typography: {issue}")
+    typography_score = latex_notes.get("typography_score")
+    if typography_score is not None and typography_score < 20:
+        concerns.append(f"weak typography score: {typography_score}/25")
+    structure_score = latex_notes.get("structure_score")
+    if structure_score is not None and structure_score < 22:
+        concerns.append(f"weak structure score: {structure_score}/25")
+
+    manifest = {
+        "run_id": state.get("workflow_id"),
+        "timestamp": datetime.now().isoformat(),
+        "content_source": content_source,
+        "tex_path": str(tex_path),
+        "pdf_path": str(pdf_path),
+        "tex_exists": tex_path.exists(),
+        "pdf_exists": pdf_path.exists(),
+        "page_count": page_count,
+        "visual_qa_mode": get_visual_qa_mode(),
+        "next_step": "interactive_review",
+        "concerns": concerns,
+    }
+
+    manifest_path = out_path / "handoff.json"
+    with open(manifest_path, "w", encoding="utf-8") as f:
+        json.dump(manifest, f, indent=2)
+    return manifest_path
+
+
 def completion_node(state: PipelineState) -> Dict[str, Any]:
-    """Mark pipeline as successfully complete."""
+    """Mark pipeline as successfully complete.
+
+    In interactive mode, also writes a handoff.json so the
+    /printshop-review Claude Code skill can pick up where the pipeline
+    stopped.
+    """
+    if get_visual_qa_mode() == "interactive":
+        manifest_path = write_handoff_manifest(state)
+        if manifest_path is not None:
+            print(f"   [LangGraph] Wrote interactive handoff manifest: {manifest_path}")
+            print("   [LangGraph] Run /printshop-review in Claude Code to drive the visual review.")
+
     return {
         "success": True,
         "human_handoff": True,
@@ -725,8 +832,16 @@ def route_after_content_review(state: PipelineState) -> Literal["enrich_for_late
         return "escalation"
 
 
-def route_after_latex_optimization(state: PipelineState) -> Literal["enrich_for_visual_qa", "iteration", "escalation"]:
-    """Decide next step after LaTeX optimization using quality gate."""
+def route_after_latex_optimization(
+    state: PipelineState,
+) -> Literal["enrich_for_visual_qa", "quality_assessment", "iteration", "escalation"]:
+    """Decide next step after LaTeX optimization using quality gate.
+
+    When VISUAL_QA_MODE is "disabled" or "interactive", a passing LaTeX gate
+    routes directly to quality_assessment, skipping the autonomous visual QA
+    stage. Iteration / escalation behavior is unchanged so compilation
+    failures still drive a fix loop.
+    """
     coordinator = WorkflowCoordinator(
         content_source=state.get("content_source", "research_report")
     )
@@ -736,7 +851,11 @@ def route_after_latex_optimization(state: PipelineState) -> Literal["enrich_for_
     print(f"   [LangGraph] LaTeX quality gate: {evaluation.result.value} (score={evaluation.score})")
 
     if evaluation.result == QualityGateResult.PASS:
-        return "enrich_for_visual_qa"
+        mode = get_visual_qa_mode()
+        if mode == "auto":
+            return "enrich_for_visual_qa"
+        print(f"   [LangGraph] VISUAL_QA_MODE={mode} — skipping autonomous visual QA")
+        return "quality_assessment"
     elif evaluation.result == QualityGateResult.ITERATE:
         if state.get("iterations_completed", 0) >= coordinator.quality_gate_manager.thresholds.max_iterations:
             return "escalation"
