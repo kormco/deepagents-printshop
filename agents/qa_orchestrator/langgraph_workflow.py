@@ -166,7 +166,8 @@ def _llm_fix_latex(tex_content: str, error_log: str, attempt: int) -> Optional[s
     try:
         from anthropic import Anthropic
 
-        client = Anthropic(api_key=api_key)
+        from tools.tracing import maybe_wrap_anthropic
+        client = maybe_wrap_anthropic(Anthropic(api_key=api_key))
 
         if original_preamble:
             prompt = (

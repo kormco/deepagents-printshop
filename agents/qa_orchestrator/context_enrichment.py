@@ -34,7 +34,9 @@ def _get_anthropic_client():
     if not api_key:
         return None
     from anthropic import Anthropic
-    return Anthropic(api_key=api_key)
+
+    from tools.tracing import maybe_wrap_anthropic
+    return maybe_wrap_anthropic(Anthropic(api_key=api_key))
 
 
 def _load_pattern_context(content_source: str) -> Dict[str, str]:

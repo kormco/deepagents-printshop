@@ -7,6 +7,8 @@ from typing import Dict, List, Optional, Tuple
 
 import anthropic
 
+from tools.tracing import maybe_wrap_anthropic
+
 
 @dataclass
 class LaTeXGenerationRequest:
@@ -51,7 +53,7 @@ class LLMLaTeXGenerator:
         self.api_key = api_key or os.getenv('ANTHROPIC_API_KEY')
         if not self.api_key:
             raise ValueError("ANTHROPIC_API_KEY not found")
-        self.client = anthropic.Anthropic(api_key=self.api_key)
+        self.client = maybe_wrap_anthropic(anthropic.Anthropic(api_key=self.api_key))
 
     def generate_document(self, request: LaTeXGenerationRequest,
                           validate: bool = True) -> LaTeXGenerationResult:

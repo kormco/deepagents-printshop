@@ -20,6 +20,7 @@ if str(project_root) not in __import__('sys').path:
 
 from tools.content_type_loader import ContentTypeLoader
 from tools.latex_generator import LaTeXGenerator
+from tools.tracing import maybe_wrap_anthropic
 
 
 class LaTeXOptimizer:
@@ -42,7 +43,7 @@ class LaTeXOptimizer:
         self.content_source = content_source
         self.content_dir = Path("artifacts/sample_content") / content_source
         self.api_key = os.getenv('ANTHROPIC_API_KEY')
-        self.client = anthropic.Anthropic(api_key=self.api_key) if self.api_key else None
+        self.client = maybe_wrap_anthropic(anthropic.Anthropic(api_key=self.api_key)) if self.api_key else None
         self.professional_packages = {
             'typography': [
                 '\\usepackage[T1]{fontenc}',

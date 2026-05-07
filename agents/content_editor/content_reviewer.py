@@ -16,6 +16,8 @@ from anthropic import Anthropic
 project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
 
+from tools.tracing import maybe_wrap_anthropic  # noqa: E402
+
 try:
     from tools.pattern_injector import PatternInjector
 except ImportError:
@@ -32,7 +34,7 @@ class ContentReviewer:
         Args:
             document_type: Type of document for loading type-specific patterns
         """
-        self.client = Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
+        self.client = maybe_wrap_anthropic(Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY")))
         self.document_type = document_type
 
         # Initialize pattern injector if available

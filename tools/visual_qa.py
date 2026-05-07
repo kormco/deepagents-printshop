@@ -20,6 +20,8 @@ except ImportError:
     ANTHROPIC_AVAILABLE = False
     print("⚠️ Anthropic not available - visual analysis will be limited")
 
+from tools.tracing import maybe_wrap_anthropic
+
 
 @dataclass
 class VisualValidationResult:
@@ -168,7 +170,7 @@ class MultimodalLLMAnalyzer:
                 print("⚠️ ANTHROPIC_API_KEY not found - using fallback analysis")
                 self.client = None
             else:
-                self.client = anthropic.Anthropic(api_key=self.api_key)
+                self.client = maybe_wrap_anthropic(anthropic.Anthropic(api_key=self.api_key))
 
         self.validation_prompts = self._init_validation_prompts()
 
