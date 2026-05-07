@@ -2,7 +2,6 @@
 DeepAgents PrintShop - Research Agent
 
 A specialized agent for generating LaTeX research reports with persistent memory.
-Integrates with DeepAgents CLI framework.
 """
 
 import sys

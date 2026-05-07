@@ -3,7 +3,6 @@
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://github.com/kormco/deepagents-printshop/blob/main/LICENSE)
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://python.org)
 [![Built with LangGraph](https://img.shields.io/badge/Built%20with-LangGraph-orange.svg)](https://github.com/langchain-ai/langgraph)
-[![Built with DeepAgents CLI](https://img.shields.io/badge/Built%20with-DeepAgents%20CLI-purple.svg)](https://pypi.org/project/deepagents-cli/)
 
 An advanced multi-agent system that generates professional LaTeX documents with comprehensive quality assurance, LLM-based document optimization, and automated visual quality analysis. Orchestrated by a **LangGraph StateGraph** with quality gates, iterative refinement, and inter-agent communication.
 
