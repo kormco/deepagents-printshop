@@ -4,7 +4,6 @@ All tests run without Docker, TeX Live, or API keys.
 """
 
 import json
-import os
 import sys
 from pathlib import Path
 from unittest.mock import MagicMock, patch
