@@ -170,6 +170,20 @@ DeepAgents persistent memory stored in `.deepagents/`:
 
 **Environment**: Uses `.env` file for ANTHROPIC_API_KEY, Docker volumes for persistence.
 
+### Visual QA Modes
+
+`VISUAL_QA_MODE` (env var, default `auto`) controls whether the pipeline runs the autonomous visual QA stage:
+
+| Mode | Pipeline behavior | Visual QA |
+|------|-------------------|-----------|
+| `auto` | Runs all three stages | Claude vision, automated, gated |
+| `disabled` | Stops after LaTeX gen, emits PDF + report | Skipped |
+| `interactive` | Stops after LaTeX gen, writes `handoff.json` | Skipped — user runs `/printshop-review` in Claude Code to drive a human-in-the-loop review |
+
+In `interactive` mode the orchestrator writes `artifacts/output/<run_id>/handoff.json` listing the .tex/PDF paths, page count, and any concerns the LaTeX-specialist stage flagged. The `.claude/skills/printshop-review/` skill picks that up. Recompilation after a fix goes through `python -m tools.recompile <run_id>`, which wraps `PDFCompiler` so multi-pass + regex fixes still apply.
+
+Routing for `disabled`/`interactive` skips both `enrich_for_visual_qa` and `visual_qa`; `iteration` and `escalation` still apply when the LaTeX gate fails (e.g., compilation errors), so the only change is the post-pass branch.
+
 ## Development Patterns
 
 ### Adding New Content Types
