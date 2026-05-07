@@ -71,10 +71,12 @@ jobs:
       - name: Check no binaries in wheel
         run: |
           WHEEL=$(ls dist/*.whl)
-          BINARIES=$(unzip -l "$WHEEL" | grep -ciE '\.(pdf|png|jpg|jpeg|csv)' || true)
+          # CSVs are intentionally shipped as sample-content data tables (tiny, text).
+          # The check exists to keep PDFs/images out of the wheel.
+          BINARIES=$(unzip -l "$WHEEL" | grep -ciE '\.(pdf|png|jpg|jpeg)' || true)
           if [ "$BINARIES" -gt 0 ]; then
-            echo "ERROR: Found binary/data files in wheel:"
-            unzip -l "$WHEEL" | grep -iE '\.(pdf|png|jpg|jpeg|csv)'
+            echo "ERROR: Found binary files in wheel:"
+            unzip -l "$WHEEL" | grep -iE '\.(pdf|png|jpg|jpeg)'
             exit 1
           fi
           echo "OK: no binary files in wheel"
