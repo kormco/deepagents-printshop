@@ -634,6 +634,18 @@ Uses multimodal LLM analysis for PDF quality:
 - Figure and table quality
 - **Critical:** LaTeX syntax detection (flags unrendered LaTeX commands)
 
+### LangSmith Tracing (optional)
+
+The pipeline makes 10–20 Claude calls per run across multiple stages. To get cost / latency / prompt visibility per run, enable LangSmith tracing:
+
+```bash
+LANGCHAIN_TRACING_V2=true
+LANGCHAIN_API_KEY=lsv2_pt_...
+LANGCHAIN_PROJECT=deepagents-printshop
+```
+
+LangGraph nodes auto-trace. Direct Anthropic SDK calls are wrapped via `tools/tracing.maybe_wrap_anthropic`. Tracing is fully opt-in — with the env var unset, the wrapper is a no-op and there's zero overhead.
+
 ### Visual QA Modes
 
 The autonomous visual QA stage is the most expensive and most Claude-dependent part of the pipeline. The `VISUAL_QA_MODE` env var lets you opt out and either ship straight after LaTeX generation or drive the visual review yourself in Claude Code:

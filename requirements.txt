@@ -5,6 +5,7 @@ langchain
 langchain-anthropic
 langchain-openai
 langgraph
+langsmith
 pandas
 pillow
 matplotlib

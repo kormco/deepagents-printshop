@@ -170,6 +170,14 @@ DeepAgents persistent memory stored in `.deepagents/`:
 
 **Environment**: Uses `.env` file for ANTHROPIC_API_KEY, Docker volumes for persistence.
 
+### LangSmith Tracing (optional)
+
+When `LANGCHAIN_TRACING_V2=true` is set (plus `LANGCHAIN_API_KEY` and `LANGCHAIN_PROJECT`), every pipeline run is traced to LangSmith. Cost, per-node latency, prompts, and model usage are all visible per run.
+
+LangGraph nodes auto-instrument. Direct `anthropic.Anthropic()` clients do not — `tools/tracing.py` wraps them via `maybe_wrap_anthropic()` so their `messages.create` calls also appear in the trace tree. Tracing is fully opt-in: with the env var unset, `maybe_wrap_anthropic` returns the client unchanged and `langsmith` isn't even imported.
+
+When adding a new direct `anthropic.Anthropic(...)` instantiation, wrap it with `maybe_wrap_anthropic(...)` so it shows up in traces when tracing is enabled. `langchain-anthropic`'s `ChatAnthropic` is already auto-instrumented and needs no wrapping.
+
 ### Visual QA Modes
 
 `VISUAL_QA_MODE` (env var, default `auto`) controls whether the pipeline runs the autonomous visual QA stage:
