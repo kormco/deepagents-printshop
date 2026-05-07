@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "deepagents-printshop"
-version = "0.2.1"
+version = "0.2.2"
 description = "Multi-agent LaTeX document generation with LangGraph QA pipeline"
 readme = "README.md"
 license = "Apache-2.0"
@@ -53,7 +53,22 @@ Homepage = "https://github.com/kormco/deepagents-printshop"
 Repository = "https://github.com/kormco/deepagents-printshop"
 
 [tool.hatch.build.targets.wheel]
-packages = ["agents", "tools"]
+# Ship content_types/ (required for non-default content types to render correctly)
+# and sample_content/ text files only. Images are downloaded on first run by
+# tools/sample_content_scaffold.py to keep wheel size small.
+only-include = [
+    "agents",
+    "tools",
+    "content_types",
+    "artifacts/sample_content",
+]
+exclude = [
+    "*.pdf",
+    "*.png",
+    "*.jpg",
+    "*.jpeg",
+    "**/__pycache__/**",
+]
 
 [tool.hatch.build.targets.sdist]
 exclude = [
