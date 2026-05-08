@@ -65,14 +65,15 @@ class TestGraphCompilation:
         ]:
             assert node in mermaid, f"Node '{node}' missing from Mermaid diagram"
 
-    def test_graph_has_10_nodes(self):
-        """Graph should have 10 nodes (7 processing + 3 enrichment)."""
+    def test_graph_has_11_nodes(self):
+        """Graph should have 11 nodes (7 processing + 3 enrichment + 1 HITL checkpoint)."""
         graph = build_qa_graph()
         compiled = graph.compile()
         node_names = set(compiled.get_graph().nodes.keys())
         # LangGraph adds __start__ and __end__ pseudo-nodes
         real_nodes = node_names - {"__start__", "__end__"}
-        assert len(real_nodes) == 10, f"Expected 10 nodes, got {len(real_nodes)}: {real_nodes}"
+        assert len(real_nodes) == 11, f"Expected 11 nodes, got {len(real_nodes)}: {real_nodes}"
+        assert "human_checkpoint_after_latex" in real_nodes
 
 
 # ---------------------------------------------------------------------------

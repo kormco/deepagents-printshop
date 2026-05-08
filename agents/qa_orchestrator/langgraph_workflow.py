@@ -56,6 +56,22 @@ def get_visual_qa_mode() -> str:
 
 
 # ---------------------------------------------------------------------------
+# HITL (human-in-the-loop) mode helpers
+# ---------------------------------------------------------------------------
+
+def get_hitl_mode() -> bool:
+    """Read HITL_MODE from the environment.
+
+    When "on", the graph pauses at human-checkpoint nodes via interrupt() so
+    an external driver (the printshop CLI) can present state to a human and
+    resume with their decision. When "off" (default), the graph runs the
+    existing autonomous routing unchanged.
+    """
+    raw = (os.environ.get("HITL_MODE") or "off").strip().lower()
+    return raw == "on"
+
+
+# ---------------------------------------------------------------------------
 # LLM-based LaTeX error fixer (second-tier, after PDFCompiler regex fixes)
 # ---------------------------------------------------------------------------
 
@@ -707,6 +723,81 @@ def iteration_node(state: PipelineState) -> Dict[str, Any]:
     }
 
 
+def _build_latex_checkpoint_payload(state: PipelineState) -> Dict[str, Any]:
+    """Build the ask payload for the post-LaTeX human checkpoint.
+
+    Lives next to the node so both stay in sync. Pulls paths, scores, and
+    upstream notes from the current PipelineState.
+    """
+    content_source = state.get("content_source", "research_report")
+    output_dir = state.get("output_dir", "artifacts/output")
+
+    agent_results = state.get("agent_results", []) or []
+    latex_results = [r for r in agent_results if r.get("agent_type") == "latex_specialist"]
+    latex_score = latex_results[-1].get("quality_score") if latex_results else None
+
+    agent_ctx = state.get("agent_context", {}) or {}
+    latex_notes = agent_ctx.get("latex_specialist_notes", {}) or {}
+
+    pdf_path = f"{output_dir}/{content_source}.pdf"
+    tex_path = f"{output_dir}/{content_source}.tex"
+
+    return {
+        "stage": "latex_optimization",
+        "iteration": state.get("iterations_completed", 0),
+        "summary": (
+            f"LaTeX stage complete (score {latex_score})."
+            if latex_score is not None
+            else "LaTeX stage complete."
+        ),
+        "scores": {
+            "agent": {"value": latex_score, "rationale": "LaTeX specialist quality score"},
+            "thresholds": {"minimum": 80, "good": 85, "excellent": 90},
+        },
+        "artifacts": {
+            "tex": tex_path,
+            "pdf": pdf_path,
+        },
+        "notes": {
+            "structure_score": latex_notes.get("structure_score"),
+            "typography_score": latex_notes.get("typography_score"),
+            "typography_issues": latex_notes.get("typography_issues", []),
+            "compilation_success": latex_notes.get("compilation_success"),
+        },
+        "question": "Review the compiled output. Approve, edit, describe changes, rerun the stage, skip to finalize, or abort.",
+        "valid_actions": [
+            "approve_all",
+            "approve_subset",
+            "edit",
+            "describe",
+            "rerun_stage",
+            "skip_to_finalize",
+            "abort",
+        ],
+    }
+
+
+def human_checkpoint_after_latex_node(state: PipelineState) -> Dict[str, Any]:
+    """Pause for human review of the LaTeX-optimized output.
+
+    Calls interrupt() with an ask payload built from current state. When the
+    graph is resumed via Command(resume=response), interrupt() returns that
+    response and we record it in agent_context for the routing function.
+
+    Only reached when HITL_MODE=on; route_after_latex_optimization_or_hitl
+    keeps autonomous runs out of this node entirely.
+    """
+    from langgraph.types import interrupt
+
+    payload = _build_latex_checkpoint_payload(state)
+    response = interrupt(payload)
+
+    return {
+        "current_stage": "human_checkpoint_after_latex",
+        "agent_context": {"human_response_after_latex": response or {"action": "approve_all"}},
+    }
+
+
 def _count_pdf_pages(pdf_path: Path) -> Optional[int]:
     """Best-effort PDF page count. Returns None if no available reader works."""
     try:
@@ -865,6 +956,58 @@ def route_after_latex_optimization(
         return "escalation"
 
 
+def route_after_latex_optimization_or_hitl(
+    state: PipelineState,
+) -> Literal[
+    "human_checkpoint_after_latex",
+    "enrich_for_visual_qa",
+    "quality_assessment",
+    "iteration",
+    "escalation",
+]:
+    """Route after latex_optimization, with optional HITL pause.
+
+    When HITL_MODE=on and the LaTeX stage was successful, route to the human
+    checkpoint instead of continuing autonomously. Compilation failures still
+    drive the existing iterate/escalate path so the auto-retry inner loop
+    survives.
+    """
+    if get_hitl_mode():
+        agent_results = state.get("agent_results", []) or []
+        latex_results = [r for r in agent_results if r.get("agent_type") == "latex_specialist"]
+        if latex_results and latex_results[-1].get("success"):
+            print("   [LangGraph] HITL_MODE=on — pausing for human review after LaTeX stage")
+            return "human_checkpoint_after_latex"
+    return route_after_latex_optimization(state)
+
+
+def route_after_human_checkpoint(
+    state: PipelineState,
+) -> Literal["enrich_for_visual_qa", "quality_assessment", "iteration", "completion", "escalation"]:
+    """Route based on the human's response stored in agent_context.
+
+    Mirrors the action vocabulary in printshop/contracts.py. Unknown actions
+    fall through to the same destination as approve_all so the graph never
+    deadlocks on a malformed response.
+    """
+    agent_ctx = state.get("agent_context", {}) or {}
+    response = agent_ctx.get("human_response_after_latex", {}) or {}
+    action = response.get("action", "approve_all")
+
+    if action == "abort":
+        return "escalation"
+    if action == "rerun_stage":
+        return "iteration"
+    if action == "skip_to_finalize":
+        return "completion"
+
+    # approve_all, approve_subset, edit, describe — proceed to next stage
+    mode = get_visual_qa_mode()
+    if mode == "auto":
+        return "enrich_for_visual_qa"
+    return "quality_assessment"
+
+
 def route_after_quality_assessment(state: PipelineState) -> Literal["completion", "iteration", "escalation"]:
     """Decide final outcome after quality assessment."""
     evaluations = state.get("quality_evaluations", [])
@@ -907,6 +1050,11 @@ def build_qa_graph() -> StateGraph:
     graph.add_node("completion", completion_node)
     graph.add_node("escalation", escalation_node)
 
+    # HITL checkpoint — only routed to when HITL_MODE=on. Always present in
+    # the graph (orphan when off) so a single graph definition serves both
+    # autonomous and interactive runs.
+    graph.add_node("human_checkpoint_after_latex", human_checkpoint_after_latex_node)
+
     # Add enrichment nodes
     graph.add_node("enrich_for_latex", enrich_for_latex_node)
     graph.add_node("enrich_for_visual_qa", enrich_for_visual_qa_node)
@@ -916,7 +1064,8 @@ def build_qa_graph() -> StateGraph:
     graph.add_edge(START, "content_review")
     graph.add_conditional_edges("content_review", route_after_content_review)
     graph.add_edge("enrich_for_latex", "latex_optimization")
-    graph.add_conditional_edges("latex_optimization", route_after_latex_optimization)
+    graph.add_conditional_edges("latex_optimization", route_after_latex_optimization_or_hitl)
+    graph.add_conditional_edges("human_checkpoint_after_latex", route_after_human_checkpoint)
     graph.add_edge("enrich_for_visual_qa", "visual_qa")
     graph.add_edge("visual_qa", "quality_assessment")
     graph.add_conditional_edges("quality_assessment", route_after_quality_assessment)
