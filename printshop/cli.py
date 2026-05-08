@@ -444,7 +444,35 @@ def _build_parser() -> argparse.ArgumentParser:
     return p
 
 
+def _force_utf8_stdio() -> None:
+    """Force UTF-8 on stdout/stderr so emoji and Unicode in agent ``print``
+    calls don't crash the run on Windows under cp1252.
+
+    Mirrors the wrapper in ``run_agent.py``. Idempotent and a no-op when
+    streams are already UTF-8.
+    """
+    import io
+
+    os.environ.setdefault("PYTHONIOENCODING", "utf-8")
+    os.environ.setdefault("PYTHONUTF8", "1")
+
+    if sys.platform != "win32":
+        return
+    for name in ("stdout", "stderr"):
+        stream = getattr(sys, name, None)
+        if stream is None:
+            continue
+        encoding = (getattr(stream, "encoding", "") or "").lower()
+        if "utf" in encoding:
+            continue
+        buffer = getattr(stream, "buffer", None)
+        if buffer is None:
+            continue
+        setattr(sys, name, io.TextIOWrapper(buffer, encoding="utf-8", errors="replace"))
+
+
 def main(argv: Optional[List[str]] = None) -> int:
+    _force_utf8_stdio()
     parser = _build_parser()
     args = parser.parse_args(argv)
     return args.func(args)
